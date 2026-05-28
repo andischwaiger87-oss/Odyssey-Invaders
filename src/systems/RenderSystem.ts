@@ -13,8 +13,6 @@ export class RenderSystem implements System {
         const render = engine.em.getComponent<Renderable>(entity, "Renderable")!;
 
         ctx.save();
-
-        // SOTA 2026 Neon Bloom-Effekt über native Canvas-Schatten
         ctx.shadowBlur = 15;
         ctx.shadowColor = render.color;
         ctx.fillStyle = render.color;
@@ -25,20 +23,32 @@ export class RenderSystem implements System {
             break;
 
           case "monolith":
-            // Die unheimliche monolithische Geometrie aus dem Film (Menschheits-Katalysator)
             ctx.shadowBlur = 25;
             ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
             ctx.fillStyle = "#000000";
             ctx.fillRect(pos.x, pos.y, render.size, render.size * 2.25);
-            
-            // Subtile, glühende Konturlinie (HAL-Sabotage-Indikator in Akt 3)
             ctx.strokeStyle = engine.currentAct === 3 ? "#ff3333" : "#444446";
             ctx.lineWidth = 1;
             ctx.strokeRect(pos.x, pos.y, render.size, render.size * 2.25);
             break;
 
+          case "predator":
+            this.drawPredatorBeast(ctx, pos.x, pos.y, render.size);
+            break;
+
+          case "satellite":
+            this.drawLunarSatellite(ctx, pos.x, pos.y, render.size);
+            break;
+
+          case "evapod":
+            this.drawEVAPod(ctx, pos.x, pos.y, render.size);
+            break;
+
+          case "echo":
+            this.drawAstralEcho(ctx, pos.x, pos.y, render.size, engine.ctx.canvas.width);
+            break;
+
           case "cube":
-            // Universeller Vektor-Stil für Projektile, Laserstrahlen und Power-Ups
             ctx.fillRect(pos.x, pos.y, render.size, render.size * 2.2);
             break;
         }
@@ -48,36 +58,29 @@ export class RenderSystem implements System {
     }
   }
 
-  // Zeichnet prozedural die präzise Silhouette der Discovery One im Vektor-Stil
   private drawDiscoveryOne(ctx: CanvasRenderingContext2D, x: number, y: number): void {
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 2;
-
-    // 1. Das kugelförmige Cockpit (Kopf-Sektion)
     ctx.beginPath();
     ctx.arc(x + 20, y + 10, 12, 0, Math.PI * 2);
     ctx.fillStyle = "#ffffff";
     ctx.fill();
     ctx.stroke();
 
-    // Ikonischer roter Linsenpunkt im Cockpit (Zentrales Auge / HAL-Hommage)
     ctx.fillStyle = "#ff3333";
     ctx.beginPath();
     ctx.arc(x + 20, y + 8, 2, 0, Math.PI * 2);
     ctx.fill();
 
-    // 2. Der lange Verbindungssteg (Wirbelsäule des Schiffs)
     ctx.beginPath();
     ctx.moveTo(x + 20, y + 22);
     ctx.lineTo(x + 20, y + 45);
     ctx.stroke();
 
-    // 3. Die Heck-Triebwerkssektion mit dynamischem Plasma-Glühen
     ctx.fillStyle = "#0d0d11";
     ctx.fillRect(x + 5, y + 45, 30, 12);
     ctx.strokeRect(x + 5, y + 45, 30, 12);
 
-    // Flackernder Ionen-Ausstoß (Prozedurales Partikel-Glühen)
     if (Math.random() > 0.3) {
       ctx.fillStyle = "#00ffff";
       ctx.shadowColor = "#00ffff";
@@ -85,5 +88,66 @@ export class RenderSystem implements System {
       ctx.fillRect(x + 9, y + 57, 5, 7);
       ctx.fillRect(x + 25, y + 57, 5, 7);
     }
+  }
+
+  private drawPredatorBeast(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    ctx.strokeStyle = "#d97706";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y + 4, size, size - 8);
+    ctx.fillStyle = "#b45309";
+    ctx.fillRect(x + 4, y, 4, 4);
+    ctx.fillRect(x + size - 8, y, 4, 4);
+  }
+
+  private drawLunarSatellite(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x + size / 2, y);
+    ctx.lineTo(x + size, y + size / 2);
+    ctx.lineTo(x + size / 2, y + size);
+    ctx.lineTo(x, y + size / 2);
+    ctx.closePath();
+    ctx.stroke();
+    
+    ctx.fillStyle = "#64748b";
+    ctx.beginPath();
+    ctx.arc(x + size / 2, y + size / 2, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  private drawEVAPod(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    ctx.strokeStyle = "#eab308";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fill();
+
+    ctx.fillStyle = "#ff3333";
+    ctx.fillRect(x + size / 2 - 2, y + 4, 4, 4);
+
+    ctx.strokeStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(x, y + size / 2);
+    ctx.lineTo(x - 6, y + size / 2 + 4);
+    ctx.moveTo(x + size, y + size / 2);
+    ctx.lineTo(x + size + 6, y + size / 2 + 4);
+    ctx.stroke();
+  }
+
+  private drawAstralEcho(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, screenWidth: number): void {
+    let wave = Math.sin(x * 0.05 + y * 0.05) * 180;
+    ctx.strokeStyle = `hsla(${wave % 360}, 100%, 70%, 0.8)`;
+    ctx.lineWidth = 1;
+    
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + size, y + size);
+    ctx.moveTo(x + size, y);
+    ctx.lineTo(x, y + size);
+    ctx.stroke();
   }
 }

@@ -15,102 +15,113 @@ export class InvaderAiSystem implements System {
     this.waveTimer += delta;
     if (this.globalShootCooldown > 0) this.globalShootCooldown -= delta;
 
-    // Filtere alle aktiven Invader-Entitäten
-    const invaders = entities.filter(e => {
-      const col = engine.em.getComponent<Collider>(e, "Collider");
-      return col && col.faction === "INVADER";
-    });
+    const invaders = entities.filter(e => 
+      engine.em.hasComponent(e, "Collider") && 
+      engine.em.getComponent<Collider>(e, "Collider")!.faction === "INVADER"
+    );
 
-    // Wenn das Feld geräumt ist, übernimmt das ActDirectorSystem den Übergang
     if (invaders.length === 0) return;
 
-    // Finde die Position des Spielers für vorausschauende Zielberechnungen (Akt III)
     const playerEntity = entities.find(e => engine.em.getComponent<Collider>(e, "Collider")?.faction === "PLAYER");
     const playerPos = playerEntity ? engine.em.getComponent<Position>(playerEntity, "Position") : null;
 
     let edgeHit = false;
+    let baseSpeed = 60 + engine.currentLevel * 15; // Skaliert unerbittlich mit jedem Level
 
-    // --- STRATEGISCHE KI-BERECHNUNG NACH FILMAKTEN ---
-    switch (engine.currentAct) {
-      case 1: // Die Urzeit: Chaotisches Hin- und Herwabern der Horde
-        for (const invader of invaders) {
-          const pos = engine.em.getComponent<Position>(invader, "Position")!;
-          pos.x += Math.sin(this.waveTimer * 2 + pos.y) * 40 * delta;
-          pos.y += 5 * delta; // Drängt langsam nach unten
-        }
-        break;
+    // --- BEWEGUNGS- UND KAMPFVERHALTEN NACH GEGNER-TYPEN ---
+    for (const invader of invaders) {
+      const pos = engine.em.getComponent<Position>(invader, "Position")!;
+      const render = engine.em.getComponent<Renderable>(invader, "Renderable")!;
+      const vel = engine.em.getComponent<Velocity>(invader, "Velocity");
 
-      case 2: // TMA-1 Mond: Das klassische, unerbittliche Space-Invaders-Muster
-        for (const invader of invaders) {
-          const pos = engine.em.getComponent<Position>(invader, "Position")!;
+      switch (render.type) {
+        case "cube": // Primitiv-Horde (Akt I)
+          pos.x += Math.sin(this.waveTimer * 2.5 + pos.y) * 35 * delta;
+          pos.y += (8 + engine.currentLevel * 2) * delta;
+          break;
+
+        case "predator": // Urzeit-Säbelzahntiger (Akt I, Lvl 2-3)
+          // Aggressives Zick-Zack Sturzverhalten direkt nach unten
+          pos.x += Math.cos(this.waveTimer * 5) * 90 * delta;
+          pos.y += (25 + engine.currentLevel * 4) * delta;
+          break;
+
+        case "monolith": // Mond- und Jupitermonolithen (Akt II)
           if (this.direction === 1 && pos.x > engine.ctx.canvas.width - 45) edgeHit = true;
           if (this.direction === -1 && pos.x < 15) edgeHit = true;
-        }
+          break;
 
-        if (edgeHit) {
-          this.direction *= -1;
-          this.moveDownPending = true;
-        }
-
-        for (const invader of invaders) {
-          const pos = engine.em.getComponent<Position>(invader, "Position")!;
-          if (this.moveDownPending) {
-            pos.y += 25;
-          } else {
-            pos.x += this.direction * 90 * delta;
+        case "satellite": // Lunar-Verteidigungssysteme (Akt II, Lvl 5-6)
+          // Schweben autark, brechen aus dem Block aus und decken den Raum ab
+          pos.x += Math.sin(this.waveTimer * 1.5 + pos.y) * 120 * delta;
+          if (this.globalShootCooldown <= 0 && Math.random() < 0.02) {
+            this.fireEnemyLaser(engine, pos.x + 12, pos.y + 20, "#cbd5e1", 0);
+            this.globalShootCooldown = 0.4;
           }
-        }
-        this.moveDownPending = false;
+          break;
 
-        // Klassischer Zufallsschuss
-        if (this.globalShootCooldown <= 0 && Math.random() < 0.04) {
-          const luckyShot = invaders[Math.floor(Math.random() * invaders.length)];
-          const p = engine.em.getComponent<Position>(luckyShot, "Position")!;
-          this.fireEnemyLaser(engine, p.x + 10, p.y + 40);
-          this.globalShootCooldown = 0.35;
-        }
-        break;
-
-      case 3: // HAL 9000: Aggressive, vorausschauende Kern-Logik
-        for (const invader of invaders) {
-          const pos = engine.em.getComponent<Position>(invader, "Position")!;
-          const vel = engine.em.getComponent<Velocity>(invader, "Velocity")!;
-
-          // Sinusförmiges Ausschlagen der HAL-Subprozessoren
-          pos.x += vel.vx * delta;
-          pos.y += Math.sin(this.waveTimer * 3 + pos.x) * 15 * delta;
-
-          // Abprallen an den Wänden
-          if (pos.x < 20 || pos.x > engine.ctx.canvas.width - 50) {
-            vel.vx *= -1;
+        case "evapod": // Korrumpierte EVA-Kapseln (Akt III, Lvl 8-9)
+          if (vel) {
+            pos.x += vel.vx * delta;
+            pos.y += Math.sin(this.waveTimer * 4 + pos.x) * 20 * delta;
+            if (pos.x < 20 || pos.x > engine.ctx.canvas.width - 50) vel.vx *= -1;
           }
-
-          // Gezieltes Abfangen: HAL berechnet den Vektor des Spielers
-          if (this.globalShootCooldown <= 0 && playerPos && Math.random() < 0.05) {
-            // Berechne horizontalen Versatz für gezielte Schüsse
-            const dx = playerPos.x - pos.x;
-            this.firePredictiveHalLaser(engine, pos.x + 16, pos.y + 35, dx * 0.4);
-            this.globalShootCooldown = 0.25; // Erhöhte Schussfrequenz von HAL
+          // Spreading Shot: EVA-Kapseln schießen gefährliche Fächer-Salven
+          if (this.globalShootCooldown <= 0 && Math.random() < 0.03) {
+            this.fireEnemyLaser(engine, pos.x + 16, pos.y + 35, "#eab308", 0);
+            this.fireEnemyLaser(engine, pos.x + 16, pos.y + 35, "#eab308", -80);
+            this.fireEnemyLaser(engine, pos.x + 16, pos.y + 35, "#eab308", 80);
+            this.globalShootCooldown = 0.4;
           }
-        }
-        break;
+          break;
+
+        case "echo": // Astrale Echos (Akt IV Quantum Survival)
+          if (vel) {
+            pos.x += vel.vx * delta;
+            pos.y += vel.vy * delta;
+          }
+          break;
+      }
     }
+
+    // Raster-Verarbeitung für klassischen Monolithen-Block-Verlauf
+    if (edgeHit) {
+      this.direction *= -1;
+      this.moveDownPending = true;
+    }
+
+    for (const invader of invaders) {
+      const pos = engine.em.getComponent<Position>(invader, "Position")!;
+      const render = engine.em.getComponent<Renderable>(invader, "Renderable")!;
+      
+      if (render.type === "monolith") {
+        if (this.moveDownPending) {
+          pos.y += 30;
+        } else {
+          pos.x += this.direction * baseSpeed * delta;
+        }
+      }
+    }
+
+    // Standard-Zufallsfeuer für klassische Monolithen
+    if (this.globalShootCooldown <= 0 && Math.random() < 0.05) {
+      const monos = invaders.filter(e => engine.em.getComponent<Renderable>(e, "Renderable")!.type === "monolith");
+      if (monos.length > 0) {
+        const target = monos[Math.floor(Math.random() * monos.length)];
+        const p = engine.em.getComponent<Position>(target, "Position")!;
+        this.fireEnemyLaser(engine, p.x + 10, p.y + 40, "#ff3333", 0);
+        this.globalShootCooldown = 0.3;
+      }
+    }
+
+    this.moveDownPending = false;
   }
 
-  private fireEnemyLaser(engine: Engine, x: number, y: number): void {
+  private fireEnemyLaser(engine: Engine, x: number, y: number, color: string, vx: number): void {
     const laser = engine.em.createEntity();
     engine.em.addComponent(laser, new Position(x, y));
-    engine.em.addComponent(laser, new Velocity(0, 350));
-    engine.em.addComponent(laser, new Renderable("#ff3333", 4, "cube"));
+    engine.em.addComponent(laser, new Velocity(vx, 360 + engine.currentLevel * 10));
+    engine.em.addComponent(laser, new Renderable(color, 4, "cube"));
     engine.em.addComponent(laser, new Collider(4, 15, "INVADER_LASER"));
-  }
-
-  private firePredictiveHalLaser(engine: Engine, x: number, y: number, vx: number): void {
-    const laser = engine.em.createEntity();
-    engine.em.addComponent(laser, new Position(x, y));
-    // HAL schießt nicht stur geradeaus, sondern winkelt Projektile mathematisch ab!
-    engine.em.addComponent(laser, new Velocity(Math.max(-150, Math.min(150, vx)), 380));
-    engine.em.addComponent(laser, new Renderable("#ff0000", 5, "cube"));
-    engine.em.addComponent(laser, new Collider(5, 18, "INVADER_LASER"));
   }
 }

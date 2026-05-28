@@ -1,5 +1,12 @@
 import { Component } from "../core/ECS";
+
+export type RenderType = "cube" | "monolith" | "ship" | "predator" | "satellite" | "evapod" | "echo";
+
 export class Renderable implements Component {
   readonly _type = "Renderable";
-  constructor(public color: string, public size: number, public type: "cube" | "monolith" | "ship") {}
+  constructor(
+    public color: string, 
+    public size: number, 
+    public type: RenderType
+  ) {}
 }
