@@ -5,10 +5,8 @@ export interface Component {
 }
 
 export interface System {
-  update(entities: Entity[], engine: Engine, delta: number): void;
+  update(entities: Entity[], engine: any, delta: number): void;
 }
-
-import { Engine } from "./Engine";
 
 export class EntityManager {
   private entities: Set<Entity> = new Set();
@@ -32,6 +30,13 @@ export class EntityManager {
       this.components.set(component._type, new Map());
     }
     this.components.get(component._type)!.set(entity, component);
+  }
+
+  // SOTA FIX: Ermöglicht das gezielte Entfernen einzelner Komponenten (z.B. Power-Ups)
+  removeComponent(entity: Entity, type: string): void {
+    if (this.components.has(type)) {
+      this.components.get(type)!.delete(entity);
+    }
   }
 
   getComponent<T extends Component>(entity: Entity, type: string): T | undefined {

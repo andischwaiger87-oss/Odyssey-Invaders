@@ -9,17 +9,20 @@ export class Engine {
   private systems: System[] = [];
   private lastTime = 0;
 
-  // Globale Spielzustände
+  // Spieldaten & Level-Progression
   public score = 0;
   public lives = 3;
   public currentAct = 0;
+  public currentLevel = 1; // Jedes Kapitel hat nun Unter-Levels
   public state: GameState = "START";
 
-  // Delta-basierter Cinematic-Timer (Ersetzt unpräzise setTimeout-Uhr)
-  private cinematicTimer = 0;
-  private maxCinematicDuration = 5.0; // Sekunden pro Storycard
+  // SOTA CHECKPOINT SPEICHER-ZELLE
+  public checkpointAct = 1;
+  public checkpointLevel = 1;
 
-  // SOTA Screen Shake Effekt-Variablen
+  private cinematicTimer = 0;
+  private maxCinematicDuration = 5.0;
+
   private shakeDuration = 0;
   private shakeIntensity = 0;
 
@@ -38,14 +41,29 @@ export class Engine {
 
   private bindDOMEvents() {
     document.getElementById("start-btn")?.addEventListener("click", () => {
+      sfx.playSpaceAmbient(); // Zündet das Audio-System im User-Gesture Scope
+      
       const overlay = document.getElementById("screen-overlay");
       const hud = document.getElementById("hud");
       
       if (overlay) overlay.style.display = "none";
       if (hud) hud.classList.remove("opacity-0");
       
-      this.currentAct = 1;
-      this.state = "PLAYING";
+      // Falls wir von einem Checkpoint wiederkehren
+      if (this.state === "GAMEOVER") {
+        this.currentAct = this.checkpointAct;
+        this.currentLevel = this.checkpointLevel;
+        this.lives = 3;
+        this.state = "PLAYING";
+        // Zwinge den ActDirector zum sofortigen Neuaufbau der Formation
+        this.em.getAllEntities().forEach(e => {
+          if (!this.em.hasComponent(e, "Health")) this.em.destroyEntity(e);
+        });
+      } else {
+        this.currentAct = 1;
+        this.currentLevel = 1;
+        this.state = "PLAYING";
+      }
     });
   }
 
@@ -56,7 +74,7 @@ export class Engine {
 
   public triggerCinematic(title: string, textLines: string[]) {
     this.state = "CINEMATIC";
-    this.cinematicTimer = this.maxCinematicDuration; // Timer auf 5 Sekunden setzen
+    this.cinematicTimer = this.maxCinematicDuration;
     
     const card = document.getElementById("story-card")!;
     const titleEl = document.getElementById("story-title")!;
@@ -64,7 +82,6 @@ export class Engine {
     
     titleEl.textContent = title;
     textEl.innerHTML = textLines.map(line => `<p>${line}</p>`).join("");
-    
     card.classList.remove("pointer-events-none", "opacity-0");
   }
 
@@ -78,21 +95,16 @@ export class Engine {
   }
 
   private loop(currentTime: number): void {
-    // Delta-Zeit berechnen
     let delta = (currentTime - this.lastTime) / 1000;
     this.lastTime = currentTime;
 
-    // SOTA-Schutzschicht: Verhindert extreme Sprünge (z.B. Tab-Wechsel / extreme Lags)
     if (delta > 0.1) delta = 0.1;
 
-    // Hintergrund leeren (Tiefer, unheimlicher Weltraum)
     this.ctx.fillStyle = "#020205";
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
-    // Synchronisation der prozeduralen Audio-Dramaturgie
     sfx.updateAmbientTheme(this.currentAct);
 
-    // --- SCREEN SHAKE MATRIX INJEKTION ---
     this.ctx.save();
     if (this.shakeDuration > 0) {
       this.shakeDuration -= delta;
@@ -103,24 +115,18 @@ export class Engine {
 
     const entities = this.em.getAllEntities();
 
-    // --- ZUSTANDSSTEUERUNG INNERHALB DES LOOPS ---
     if (this.state === "PLAYING" || this.state === "CINEMATIC") {
-      
-      // Akt IV psychedelischer Tunnel-Warp direkt auf den Canvas rendern
       if (this.currentAct === 4) {
         this.renderStargateWarp(currentTime / 1000);
       }
 
-      // Taktung aller registrierten ECS-Systeme
       for (const system of this.systems) {
         system.update(entities, this, delta);
       }
 
-      // Delta-Verrechnung für Titelkarten im Cinematic-Zustand
       if (this.state === "CINEMATIC") {
         this.cinematicTimer -= delta;
         
-        // Dynamischer Fortschrittsbalken im UI aktualisieren
         const progressEl = document.getElementById("story-progress");
         if (progressEl) {
           const percentage = (this.cinematicTimer / this.maxCinematicDuration) * 100;
@@ -134,20 +140,17 @@ export class Engine {
       }
     }
 
-    this.ctx.restore(); // Matrix-Transformation (Shake) nach dem Rendern aufheben
+    this.ctx.restore();
 
-    // DOM HUD Updates synchronisieren
     if (this.state === "PLAYING") {
       this.syncDOMHUD();
     }
 
-    // Lebensprüfungen für Game Over Zustand
     if (this.lives <= 0 && this.state !== "GAMEOVER") {
       this.state = "GAMEOVER";
       this.handleEndState(false);
     }
 
-    // Prüfung für den transzendenten Siegzustand
     if (this.state === "GAMEWON") {
       this.handleEndState(true);
     }
@@ -161,7 +164,7 @@ export class Engine {
     const livesEl = document.getElementById("ui-lives");
 
     if (scoreEl) scoreEl.textContent = `SCORE // ${this.score.toString().padStart(6, '0')}`;
-    if (actEl) actEl.textContent = `AKT 0${this.currentAct} // MISSION INF`;
+    if (actEl) actEl.textContent = `AKT 0${this.currentAct} - LVL ${this.currentLevel}`;
     
     if (livesEl) {
       livesEl.innerHTML = "■ ".repeat(Math.max(0, this.lives))
@@ -172,7 +175,6 @@ export class Engine {
     }
   }
 
-  // Akt IV: Der psychedelische "Beyond the Infinite"-Tunnel-Effekt
   private renderStargateWarp(time: number) {
     const cx = this.ctx.canvas.width / 2;
     const cy = this.ctx.canvas.height / 2;
@@ -197,24 +199,22 @@ export class Engine {
 
     if (hud) hud.classList.add("opacity-0");
     if (overlay) overlay.style.display = "flex";
-    if (btn) btn.textContent = won ? "TRANZENDIEREN" : "REBOOT SYSTEM";
+    
+    if (btn) {
+      // SOTA CHECKPOINT FEEDBACK IM UTILITY BUTTON
+      btn.textContent = won ? "TRANZENDIEREN" : `ZURÜCK ZU AKT ${this.checkpointAct}`;
+    }
     
     if (title && desc) {
       if (!won) {
         title.textContent = "SYSTEM ERROR // DAVE";
         title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#ff3333] animate-pulse";
-        desc.textContent = "I'm sorry, Dave. I'm afraid I can't do that. Die Discovery-One-Mission ist fatal gescheitert.";
+        desc.textContent = `HAL 9000: "Ich kann das nicht zulassen, Dave." Deine Discovery wurde zerstört. Reboote am Checkpunkt (Akt ${this.checkpointAct}).`;
       } else {
         title.textContent = "EVOLUTION COMPLETED";
         title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#00ffcc] drop-shadow-[0_0_15px_rgba(0,255,204,0.6)]";
-        desc.textContent = "Das Sternenkind ist geboren. Du hast die Grenzen von Materie, Zeit und menschlichem Verstand durchbrochen.";
+        desc.textContent = "Das Sternenkind ist geboren. Du hast die Grenzen von Materie, Zeit und Verstand durchbrochen.";
       }
-    }
-
-    if (btn) {
-      btn.onclick = () => {
-        window.location.reload();
-      };
     }
   }
 }
