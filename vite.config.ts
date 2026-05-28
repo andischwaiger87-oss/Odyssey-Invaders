@@ -6,7 +6,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'terser', // Maximale Kompression für schnelle Edge-Ladezeiten
+    minify: 'esbuild', // Nutzt den ultraschnellen, nativ eingebauten SOTA-Minifier
   },
   server: {
     port: 3000,
