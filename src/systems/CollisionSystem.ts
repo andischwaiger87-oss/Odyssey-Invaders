@@ -11,7 +11,7 @@ import { sfx } from "../core/AudioEngine";
 
 export class CollisionSystem implements System {
   update(entities: Entity[], engine: Engine): void {
-    // Filtere alle Entitäten, die sowohl eine Position als auch eine Hitbox besitzen
+    // Filtere alle Entitäten mit einer Position und einer Hitbox
     const collidables = entities.filter(e => 
       engine.em.hasComponent(e, "Position") && engine.em.hasComponent(e, "Collider")
     );
@@ -21,8 +21,7 @@ export class CollisionSystem implements System {
         const e1 = collidables[i];
         const e2 = collidables[j];
 
-        // SOTA Sicherheits-Check: Falls eine Entität in diesem Frame bereits 
-        // durch eine vorherige Kollision zerstört wurde, überspringen.
+        // Sicherheits-Check gegen Doppel-Kollisionen im selben Frame
         if (!engine.em.hasComponent(e1, "Collider") || !engine.em.hasComponent(e2, "Collider")) {
           continue;
         }
@@ -33,7 +32,7 @@ export class CollisionSystem implements System {
         const pos2 = engine.em.getComponent<Position>(e2, "Position")!;
         const col2 = engine.em.getComponent<Collider>(e2, "Collider")!;
 
-        // AABB (Axis-Aligned Bounding Box) Überlappungs-Erkennung
+        // AABB Kollisionsbox-Berechnung
         if (
           pos1.x < pos2.x + col2.width &&
           pos1.x + col1.width > pos2.x &&
@@ -48,19 +47,16 @@ export class CollisionSystem implements System {
 
   private handleCollision(engine: Engine, e1: Entity, f1: FactionType, e2: Entity, f2: FactionType) {
     
-    // AKT I, II, III: Spieler-Laser trifft einen Monolithen / Invader
+    // Spieler-Laser eliminiert einen Monolithen / Invader
     if ((f1 === "PLAYER_LASER" && f2 === "INVADER") || (f2 === "PLAYER_LASER" && f1 === "INVADER")) {
       const invaderEntity = f1 === "INVADER" ? e1 : e2;
-      const pos = engine.em.getComponent<Position>(invaderEntity)!;
+      // ARCHITEKTUR-FIX: Zweiten Parameter "Position" hinzugefügt
+      const pos = engine.em.getComponent<Position>(invaderEntity, "Position")!;
       
-      // JUICE: Bildschirm vibrieren lassen (Kurzer, knackiger Impact)
       engine.triggerScreenShake(0.2, 12);
-
-      // Partikel-Explosion triggern & Audio prozedural berechnen
       ParticleSystem.spawnExplosion(engine, pos.x + 12, pos.y + 25, "#ff3333", 25);
       sfx.playExplosion(true);
 
-      // Zufallschance (15%) für ein technologisches Upgrade-Drop
       if (Math.random() < 0.15) {
         this.dropPowerUp(engine, pos.x, pos.y);
       }
@@ -71,24 +67,22 @@ export class CollisionSystem implements System {
       return;
     }
 
-    // AKT III: HAL-9000 Sabotage-Laser trifft die Discovery One (Spieler)
+    // HAL-9000 Sabotage-Laser trifft das Spielerschiff
     if ((f1 === "INVADER_LASER" && f2 === "PLAYER") || (f2 === "INVADER_LASER" && f1 === "PLAYER")) {
       const playerEntity = f1 === "PLAYER" ? e1 : e2;
       const laserEntity = f1 === "PLAYER" ? e2 : e1;
-      const pos = engine.em.getComponent<Position>(playerEntity)!;
+      // ARCHITEKTUR-FIX: Zweiten Parameter "Position" hinzugefügt
+      const pos = engine.em.getComponent<Position>(playerEntity, "Position")!;
 
-      // JUICE: Massiverer Screen-Shake bei erlittenem Schaden für maximales haptisches Feedback
       engine.triggerScreenShake(0.4, 25);
 
-      // SOTA KINEMATOGRAPHY: Roten Schadensblitz über das DOM-Overlay triggern
       const flashEl = document.getElementById("damage-flash");
       if (flashEl) {
         flashEl.classList.remove("flash-active");
-        void flashEl.offsetWidth; // Trick: Erzwingt einen synchronen DOM-Reflow, um die CSS-Animation sofort neu zu starten
+        void flashEl.offsetWidth; // DOM Reflow Trigger
         flashEl.classList.add("flash-active");
       }
 
-      // Weiße Funken-Explosion am Schild des Spielers
       ParticleSystem.spawnExplosion(engine, pos.x + 20, pos.y + 20, "#ffffff", 40);
       sfx.playExplosion(false);
       
@@ -98,22 +92,18 @@ export class CollisionSystem implements System {
       health.current -= 1;
       engine.lives = health.current;
 
-      // Game-Over Zustand einleiten bei 0 Structural Integrity
       if (health.current <= 0) {
         engine.gameOver = true;
       }
       return;
     }
 
-    // EXTRA FEATURE: Spieler kollidiert mit einem herabfallenden Power-Up
+    // Spieler sammelt fallendes Upgrade ein
     if ((f1 === "PLAYER" && f2 === "POWERUP") || (f2 === "PLAYER" && f1 === "POWERUP")) {
       const playerEntity = f1 === "PLAYER" ? e1 : e2;
       const powerUpEntity = f1 === "PLAYER" ? e2 : e1;
 
-      // JUICE: Ein kleiner, feiner Impuls beim Einsammeln eines Upgrades
       engine.triggerScreenShake(0.1, 5);
-
-      // Injiziere dem Spieler den Waffenmodifikator (Tri-Beam Modus für 5 Sekunden)
       engine.em.addComponent(playerEntity, new Modifier("TRI_BEAM", 5.0));
       engine.em.destroyEntity(powerUpEntity);
       engine.score += 500;
@@ -121,11 +111,10 @@ export class CollisionSystem implements System {
     }
   }
 
-  // Hilfsmethode zur Erzeugung eines fallenden Modifikators im dreidimensionalen Raum
   private dropPowerUp(engine: Engine, x: number, y: number) {
     const powerUp = engine.em.createEntity();
     engine.em.addComponent(powerUp, new Position(x, y));
-    engine.em.addComponent(powerUp, new Velocity(0, 150)); // Fällt sanft nach unten
+    engine.em.addComponent(powerUp, new Velocity(0, 150));
     engine.em.addComponent(powerUp, new Renderable("#00ffcc", 15, "cube"));
     engine.em.addComponent(powerUp, new Collider(15, 15, "POWERUP"));
   }

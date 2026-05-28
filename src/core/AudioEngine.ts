@@ -11,6 +11,18 @@ export class AudioEngine {
       this.ambientGain.connect(this.ctx.destination);
       this.ambientGain.gain.setValueAtTime(0.04, this.ctx.currentTime);
     }
+    // Sicherheits-Check für moderne Browser-Richtlinien
+    if (this.ctx && this.ctx.state === "suspended") {
+      this.ctx.resume();
+    }
+  }
+
+  public playSpaceAmbient(): void {
+    this.init();
+    // Startet die akustische Evolution im ersten Akt, falls noch kein Track läuft
+    if (this.activeActTrack === 0) {
+      this.updateAmbientTheme(1);
+    }
   }
 
   public playLaserSound(isPlayer: boolean): void {
@@ -24,13 +36,13 @@ export class AudioEngine {
     gain.connect(this.ctx.destination);
 
     if (isPlayer) {
-      // High-Pitch Sinus-Impuls für den Quanten-Laser der Discovery One
+      // High-Pitch Sinus-Impuls für die Discovery One
       osc.type = "sine";
       osc.frequency.setValueAtTime(950, this.ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(150, this.ctx.currentTime + 0.12);
       gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
     } else {
-      // Sägezahn-Schuss für HAL 9000 (Aggressiver, bösartiger Klangcharakter)
+      // Bedrohlicher Sägezahn-Schuss für HAL 9000
       osc.type = "sawtooth";
       osc.frequency.setValueAtTime(140, this.ctx.currentTime);
       osc.frequency.linearRampToValueAtTime(30, this.ctx.currentTime + 0.25);
@@ -50,7 +62,7 @@ export class AudioEngine {
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     
-    // Generiere echtes, physikalisches weißes Rauschen
+    // Generiere prozedurales weißes Rauschen
     for (let i = 0; i < bufferSize; i++) {
       data[i] = Math.random() * 2 - 1;
     }
@@ -73,14 +85,12 @@ export class AudioEngine {
     noise.start();
   }
 
-  // SYSTEM-UPGRADE: Schaltet die prozedurale Hintergrundmusik je nach Film-Akt um
   public updateAmbientTheme(act: number): void {
     this.init();
-    if (!this.ctx || !this.ambientGain || this.activeActTrack === act) return;
+    if (!this.ctx || !this.ambientGain || this.activeActTrack === act || act === 0) return;
 
     this.activeActTrack = act;
 
-    // Beende vorherigen Frequenz-Oszillator sanft
     if (this.currentDroneOsc) {
       try {
         this.currentDroneOsc.stop();
@@ -92,27 +102,25 @@ export class AudioEngine {
     osc.connect(this.ambientGain);
 
     switch (act) {
-      case 1: // Die Urzeit: Primitiver, extrem tiefer und bedrohlicher Ur-Rumble
+      case 1: // Akt I: Primitiver Sub-Bass Drone
         osc.type = "sine";
-        osc.frequency.setValueAtTime(45, this.ctx.currentTime); // Sub-Bass G#0
+        osc.frequency.setValueAtTime(45, this.ctx.currentTime);
         break;
 
-      case 2: // TMA-1 Mond: Schwebende, unheimliche Dreiecks-Frequenz (Mond-Anomalie)
+      case 2: // Akt II: Unheimliche Tycho-Mond-Frequenz
         osc.type = "triangle";
         osc.frequency.setValueAtTime(110, this.ctx.currentTime);
         break;
 
-      case 3: // HAL 9000: Dissonante, pulsierende Rechteckwelle (Digitaler Kontrollverlust)
+      case 3: // Akt III: Kaltes, pulsierendes HAL-Computer-Metronom
         osc.type = "square";
         osc.frequency.setValueAtTime(65, this.ctx.currentTime);
-        // Erzeuge ein rhythmisches, digitales Pulsieren (Computer-Metronom)
         this.ambientGain.gain.setValueAtTime(0.02, this.ctx.currentTime);
         break;
 
-      case 4: // Stargate: Maximal psychedelischer Frequenz-Glitch (Moduliertes Clusteraudio)
+      case 4: // Akt IV: Psychedelischer Raum-Zeit-Glitch-Warp
         osc.type = "sawtooth";
         osc.frequency.setValueAtTime(80, this.ctx.currentTime);
-        // Frequenz wandert ununterbrochen wellenartig auf und ab
         osc.frequency.linearRampToValueAtTime(350, this.ctx.currentTime + 5);
         break;
     }
