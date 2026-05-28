@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Odyssee 2026 — SOTA WebApp</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Ikonischer CRT-Scanline-Filter für den HAL-9000 Terminal-Look */
+    .crt-overlay::after {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 255, 0.01), rgba(0, 0, 255, 0.02));
+      z-index: 50;
+      background-size: 100% 4px, 6px 100%;
+      pointer-events: none;
+    }
+    body {
+      user-select: none;
+      touch-action: none;
+    }
+    /* Pulsierender Rot-Effekt bei Schaden */
+    .flash-active {
+      animation: damagePulse 0.4s ease-out;
+    }
+    @keyframes damagePulse {
+      0% { box-shadow: inset 0 0 100px rgba(255, 0, 0, 0.8); }
+      100% { box-shadow: inset 0 0 0px rgba(255, 0, 0, 0); }
+    }
+  </style>
+</head>
+<body class="bg-[#020204] text-white font-mono overflow-hidden h-screen w-screen relative crt-overlay select-none">
+
+  <div id="damage-flash" class="absolute inset-0 z-40 pointer-events-none transition-all duration-300"></div>
+
+  <div class="absolute top-0 left-0 w-full h-[6vh] bg-black z-30 border-b border-white/5 flex items-center px-6 justify-between">
+    <div class="text-[10px] tracking-[0.3em] text-gray-500 uppercase">System: Space-Invaders // Ref_2026</div>
+    <div class="text-[10px] tracking-[0.3em] text-[#ff3333] font-bold animate-pulse" id="ui-lens-status">HAL 9000 // MEMORY_POOL: NOMINAL</div>
+  </div>
+  <div class="absolute bottom-0 left-0 w-full h-[6vh] bg-black z-30 border-t border-white/5 flex items-center px-6 justify-between text-[10px] text-gray-500 tracking-widest">
+    <div>A/D OR MOUSE TO NAVIGATE</div>
+    <div>AUTOFIRING_MODUS // ACTIVE</div>
+  </div>
+
+  <div id="hud" class="absolute top-[8vh] left-0 w-full px-8 z-20 flex justify-between items-start pointer-events-none transition-opacity duration-500 opacity-0">
+    <div class="space-y-1">
+      <div class="text-2xl font-black tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" id="ui-score">SCORE // 000000</div>
+      <div class="text-xs text-gray-400 uppercase tracking-widest" id="ui-act">MISSION: STANDBY</div>
+    </div>
+    
+    <div class="text-right space-y-1">
+      <div class="text-[10px] tracking-widest text-gray-400 uppercase">Discovery Structural Integrity</div>
+      <div class="flex gap-1.5 justify-end" id="ui-lives">
+        </div>
+    </div>
+  </div>
+
+  <div id="story-card" class="absolute inset-0 z-30 flex flex-col justify-center items-center bg-black px-8 transition-all duration-700 pointer-events-none opacity-0">
+    <h1 id="story-title" class="text-xl md:text-3xl font-black tracking-[0.4em] text-center text-white mb-8 uppercase border-b border-white/10 pb-4 w-full max-w-xl"></h1>
+    <div id="story-text" class="text-xs md:text-sm text-gray-400 max-w-xl text-center leading-relaxed space-y-4 tracking-wide font-sans"></div>
+    <div class="absolute bottom-[6vh] left-0 h-0.5 bg-[#ff3333] transition-all duration-100 ease-linear" id="story-progress"></div>
+  </div>
+
+  <div id="screen-overlay" class="absolute inset-0 z-40 flex flex-col justify-center items-center bg-[#020205] px-4 text-center">
+    <div class="mb-6 relative flex items-center justify-center">
+      <div class="w-16 h-16 rounded-full bg-black border-4 border-gray-700 flex items-center justify-center shadow-[0_0_30px_rgba(255,0,0,0.2)]">
+        <div class="w-6 h-6 rounded-full bg-[#ff3333] shadow-[0_0_15px_#ff0000] flex items-center justify-center">
+          <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
+        </div>
+      </div>
+    </div>
+    <h1 id="overlay-title" class="text-2xl md:text-4xl font-black tracking-[0.25em] text-white mb-2 uppercase">2001: A Space Odyssey</h1>
+    <p id="overlay-desc" class="text-xs text-gray-500 tracking-wider max-w-md mb-8 uppercase font-sans">A Modern SOTA Entity-Component-System Reinterpretation.</p>
+    <button id="start-btn" class="pointer-events-auto bg-transparent border border-[#ff3333] text-[#ff3333] hover:bg-[#ff3333] hover:text-black font-bold text-xs uppercase tracking-[0.3em] px-8 py-4 transition-all duration-300 active:scale-95 shadow-[0_0_15px_rgba(255,51,51,0.1)]">
+      Evolution Starten
+    </button>
+  </div>
+
+  <canvas id="game-canvas" class="absolute inset-0 z-0 block w-full h-full"></canvas>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
