@@ -3,7 +3,7 @@ import { Component } from "../core/ECS";
 export class Health implements Component {
   readonly _type = "Health";
   
-  // SOTA Schutz gegen Instant-Frame-Tode
+  // Schützt den Spieler vor Multi-Treffern im exakt selben Frame
   public invulnerableTimer = 0;
 
   constructor(

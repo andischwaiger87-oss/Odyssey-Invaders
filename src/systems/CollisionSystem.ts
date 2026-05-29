@@ -11,7 +11,7 @@ import { sfx } from "../core/AudioEngine";
 
 export class CollisionSystem implements System {
   update(entities: Entity[], engine: Engine, delta: number): void {
-    // Unverwundbarkeits-Timer runtertackern
+    // Immunitäts-Timer (I-Frames) verringern
     for (const entity of entities) {
       if (engine.em.hasComponent(entity, "Health")) {
         const health = engine.em.getComponent<Health>(entity, "Health")!;
@@ -54,19 +54,19 @@ export class CollisionSystem implements System {
 
   private handleCollision(engine: Engine, e1: Entity, f1: string, e2: Entity, f2: string) {
     
-    // Spieler-Laser eliminiert Invasor
+    // Spieler-Laser eliminiert feindliche Raumschiffe / Invasoren
     if ((f1 === "PLAYER_LASER" && f2 === "INVADER") || (f2 === "PLAYER_LASER" && f1 === "INVADER")) {
       const invaderEntity = f1 === "INVADER" ? e1 : e2;
       const pos = engine.em.getComponent<Position>(invaderEntity, "Position")!;
       const render = engine.em.getComponent<Renderable>(invaderEntity, "Renderable")!;
       
-      engine.triggerScreenShake(0.15, 10);
-      ParticleSystem.spawnExplosion(engine, pos.x + 12, pos.y + 15, render.color, 20);
+      engine.triggerScreenShake(0.15, 12);
+      ParticleSystem.spawnExplosion(engine, pos.x + 12, pos.y + 15, render.color, 25);
       sfx.playExplosion(true);
 
-      engine.logDebug(`COLLISION: DISCOVERY LASER VAPORIZED ${render.type.toUpperCase()}`);
+      engine.logDebug(`ECS REGISTRY: DISCOVERY LASER INCINERATED ${render.type.toUpperCase()}`);
 
-      // Ausbalancierte Drop-Garantie (15% Chance)
+      // Ausbalancierter Upgrade-Abwurf (15% Chance)
       if (Math.random() < 0.15) this.dropBalancedPowerUp(engine, pos.x, pos.y);
 
       engine.em.destroyEntity(e1);
@@ -75,7 +75,7 @@ export class CollisionSystem implements System {
       return;
     }
 
-    // Feindlicher Sabotage-Strahl trifft Spieler (Discovery One)
+    // Feindlicher Laser trifft das Spielerschiff
     if ((f1 === "INVADER_LASER" && f2 === "PLAYER") || (f2 === "INVADER_LASER" && f1 === "PLAYER")) {
       const playerEntity = f1 === "PLAYER" ? e1 : e2;
       const laserEntity = f1 === "PLAYER" ? e2 : e1;
@@ -83,26 +83,26 @@ export class CollisionSystem implements System {
       const health = engine.em.getComponent<Health>(playerEntity, "Health")!;
       const pos = engine.em.getComponent<Position>(playerEntity, "Position")!;
 
-      // 1. SCHILD-MODIFIER PRÜFUNG: Absorbiert den Treffer komplett
+      // 1. SCHILD MODIFIER PRÜFUNG: Fängt Schaden vollständig ab
       const hasShield = engine.em.hasComponent(playerEntity, "Modifier") && 
                         engine.em.getComponent<Modifier>(playerEntity, "Modifier")!.type === "SHIELD";
 
       if (hasShield) {
-        engine.triggerScreenShake(0.2, 12);
-        ParticleSystem.spawnExplosion(engine, pos.x + 20, pos.y + 20, "#38bdf8", 30); // Blaue Schildfunken
-        engine.em.removeComponent(playerEntity, "Modifier"); // Schild bricht auf
+        engine.triggerScreenShake(0.2, 15);
+        ParticleSystem.spawnExplosion(engine, pos.x + 20, pos.y + 20, "#38bdf8", 30);
+        engine.em.removeComponent(playerEntity, "Modifier"); // Schild zerbricht
         engine.em.destroyEntity(laserEntity);
-        engine.logDebug("SHIELD DEFLECTED DEFECT // DEFLECTOR SHIELD DEPLETED");
+        engine.logDebug("CRITICAL WARNING: DEFLECTOR NETWORK LAYER SHATTERED");
         return;
       }
 
-      // 2. I-FRAME PRÜFUNG: Schützt vor Doppel-Frame-Toden
+      // 2. SOTA I-FRAME CHIP PRÜFUNG: Schützt vor Multi-Treffern im selben Frame
       if (health.invulnerableTimer > 0) {
         engine.em.destroyEntity(laserEntity);
         return;
       }
 
-      engine.triggerScreenShake(0.4, 25);
+      engine.triggerScreenShake(0.45, 26);
       const flashEl = document.getElementById("damage-flash");
       if (flashEl) {
         flashEl.classList.remove("flash-active");
@@ -116,13 +116,13 @@ export class CollisionSystem implements System {
       
       health.current -= 1;
       engine.lives = health.current;
-      health.invulnerableTimer = 1.2; // 1,2 Sekunden absolute Unverwundbarkeit
+      health.invulnerableTimer = 1.4; // 1,4 Sekunden absolute Immunität
 
-      engine.logDebug(`INTEGRITY DAMAGE // REMAINING HULL CAPACITY: ${health.current}`);
+      engine.logDebug(`HULL PENETRATION // STRUCTURAL INTEGRITY DOWN: ${health.current} / 3`);
       return;
     }
 
-    // Spieler sammelt ein Power-Up ein
+    // Spieler sammelt ein klar definiertes Upgrade ein
     if ((f1 === "PLAYER" && f2.startsWith("POWERUP_")) || (f2 === "PLAYER" && f1.startsWith("POWERUP_"))) {
       const playerEntity = f1 === "PLAYER" ? e1 : e2;
       const powerUpEntity = f1 === "PLAYER" ? e2 : e1;
@@ -132,19 +132,18 @@ export class CollisionSystem implements System {
 
       if (faction === "POWERUP_TRI") {
         engine.em.addComponent(playerEntity, new Modifier("TRI_BEAM", 6.0));
-        engine.logDebug("MATRIX CORE MODIFIED // WEAPON ENGAGED: TRI_BEAM");
+        engine.logDebug("UPGRADE ACTUATED // WEAPON INTERFACE: MULTI-TRI-BEAM");
       } else if (faction === "POWERUP_SHIELD") {
-        engine.em.addComponent(playerEntity, new Modifier("SHIELD", 10.0));
-        engine.logDebug("DEFLECTOR FIELD SYNCED // SHIELD LAYER INITIALIZED");
+        engine.em.addComponent(playerEntity, new Modifier("SHIELD", 12.0));
+        engine.logDebug("UPGRADE ACTUATED // MAGNETIC BUFFER SHIELD GENERATED");
       } else if (faction === "POWERUP_LIFE") {
         const health = engine.em.getComponent<Health>(playerEntity, "Health")!;
         if (health.current < health.max) {
           health.current += 1;
           engine.lives = health.current;
-          engine.logDebug("REPAIR KIT APPLIED // STRUCTURAL INTEGRITY RESTORED");
+          engine.logDebug("UPGRADE ACTUATED // INTERN MATERIAL DISCOVERY REPAIRED");
         } else {
-          engine.score += 1000; // Punkte-Bonus bei vollem Leben
-          engine.logDebug("INTEGRITY MAXED // OVERFLOW REWARD GRANTED");
+          engine.score += 1000;
         }
       }
 
@@ -159,19 +158,20 @@ export class CollisionSystem implements System {
     const rand = Math.random();
     
     let faction = "POWERUP_TRI";
-    let color = "#00ffcc"; // Mint: Tri-Beam
+    let color = "#00ffcc"; // Neon-Mint: Dreifachstrahl
 
     if (rand < 0.35) {
       faction = "POWERUP_SHIELD";
-      color = "#38bdf8"; // Hellblau: Schild
+      color = "#38bdf8"; // Cyber-Cyan: Schutzschild
     } else if (rand < 0.55) {
       faction = "POWERUP_LIFE";
-      color = "#f43f5e"; // Rose: Reparatur-Kit
+      color = "#f43f5e"; // Signal-Rose: Extra-Leben
     }
 
     engine.em.addComponent(powerUp, new Position(x, y));
-    engine.em.addComponent(powerUp, new Velocity(0, 130));
-    engine.em.addComponent(powerUp, new Renderable(color, 14, "cube"));
-    engine.em.addComponent(powerUp, new Collider(14, 14, faction));
+    engine.em.addComponent(powerUp, new Velocity(0, 140));
+    // ÄNDERUNG: Nutzt nun dediziert den Typ "powerup_item" statt "cube"
+    engine.em.addComponent(powerUp, new Renderable(color, 16, "powerup_item"));
+    engine.em.addComponent(powerUp, new Collider(16, 16, faction));
   }
 }
