@@ -7,7 +7,19 @@ import { Modifier } from "../components/Modifier";
 export class RenderSystem implements System {
   update(entities: Entity[], engine: Engine): void {
     const ctx = engine.ctx;
+    const width = ctx.canvas.width;
+    const height = ctx.canvas.height;
 
+    // --- SOTA REPARATUR: DYNAMISCHE JUPITER INTERZEPTION IM HINTERGRUND ---
+    if (engine.currentAct === 3) {
+      // In Akt 3 nähert sich das Schiff, Jupiter ist in der Ferne sichtbar
+      this.drawJupiter(ctx, width * 0.82, height * 0.28, 55, false);
+    } else if (engine.currentAct === 5) {
+      // Im Finale nimmt der Gasriese gigantische Ausmaße an
+      this.drawJupiter(ctx, width * 0.78, height * 0.38, 240, true);
+    }
+
+    // Rendern der restlichen Gameplay-Entitäten auf dem Vordergrund
     for (const entity of entities) {
       if (engine.em.hasComponent(entity, "Position") && engine.em.hasComponent(entity, "Renderable")) {
         const pos = engine.em.getComponent<Position>(entity, "Position")!;
@@ -44,7 +56,6 @@ export class RenderSystem implements System {
             break;
 
           case "hal9000_boss":
-            // HIGH-END BOSS ZEICHNUNG: Ein gewaltiger, bedrohlicher Serverturm mit rot pulsierendem Auge
             this.drawHalBossMainframe(ctx, pos.x, pos.y, render.size);
             break;
 
@@ -97,6 +108,63 @@ export class RenderSystem implements System {
     }
   }
 
+  // Prozedurale Render-Routine für den Planeten Jupiter
+  private drawJupiter(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number, showDetails: boolean): void {
+    ctx.save();
+    
+    // Erstelle kreisförmige Maske für die Gasbänder
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.clip();
+
+    // Basis-Farbverlauf des Gasriesen (Terracotta, Ocker und Sandfarben)
+    const planetGrad = ctx.createLinearGradient(cx, cy - radius, cx, cy + radius);
+    planetGrad.addColorStop(0, "#291a10");
+    planetGrad.addColorStop(0.18, "#7c2d12");
+    planetGrad.addColorStop(0.35, "#b45309");
+    planetGrad.addColorStop(0.5, "#fde047");
+    planetGrad.addColorStop(0.68, "#78350f");
+    planetGrad.addColorStop(0.85, "#9a3412");
+    planetGrad.addColorStop(1, "#1c1917");
+    
+    ctx.fillStyle = planetGrad;
+    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
+    if (showDetails) {
+      // Helle, sturminduzierte Wolkenbänder einzeichnen
+      ctx.fillStyle = "rgba(254, 240, 138, 0.08)";
+      ctx.fillRect(cx - radius, cy - radius * 0.3, radius * 2, radius * 0.12);
+      ctx.fillRect(cx - radius, cy + radius * 0.15, radius * 2, radius * 0.08);
+      
+      ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+      ctx.fillRect(cx - radius, cy - radius * 0.05, radius * 2, radius * 0.14);
+      ctx.fillRect(cx - radius, cy + radius * 0.4, radius * 2, radius * 0.1);
+
+      // SOTA DETAILS: Der Große Rote Fleck (Great Red Spot)
+      ctx.fillStyle = "#ea580c";
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = "#ea580c";
+      ctx.beginPath();
+      ctx.ellipse(cx + radius * 0.28, cy + radius * 0.22, radius * 0.22, radius * 0.13, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    // Sphärische 3D-Schattenblende über den Planeten legen für orbitale Plastizität
+    ctx.save();
+    const shadowGrad = ctx.createRadialGradient(cx - radius * 0.2, cy - radius * 0.2, radius * 0.3, cx, cy, radius);
+    shadowGrad.addColorStop(0, "rgba(255, 255, 255, 0.04)");
+    shadowGrad.addColorStop(0.75, "rgba(0, 0, 0, 0.45)");
+    shadowGrad.addColorStop(1, "rgba(1, 1, 4, 0.98)");
+    
+    ctx.fillStyle = shadowGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   private drawDiscoveryOne(ctx: CanvasRenderingContext2D, x: number, y: number): void {
     ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.beginPath();
     ctx.arc(x + 20, y + 10, 12, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill(); ctx.stroke();
@@ -110,49 +178,16 @@ export class RenderSystem implements System {
   }
 
   private drawHalBossMainframe(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-    // Schwarze, glänzende Aluminium-Rahmenblende
-    ctx.fillStyle = "#09090b";
-    ctx.shadowBlur = 40;
-    ctx.shadowColor = "rgba(0,0,0,0.8)";
-    ctx.fillRect(x, y, size * 2.5, size);
-    ctx.strokeStyle = "#27272a";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(x, y, size * 2.5, size);
-
-    // Symmetrische Logikgatter-Linienzüge (Kubrick Scope)
-    ctx.strokeStyle = "rgba(255,255,255,0.06)";
-    ctx.lineWidth = 1;
-    for(let i = 1; i < 6; i++) {
-      ctx.strokeRect(x + (size * i) * 0.4, y + 10, 15, size - 20);
-    }
-
-    // Gigantische Kameralinse von HAL 9000 im Zentrum
-    const cx = x + (size * 2.5) / 2;
-    const cy = y + size / 2;
-    
-    ctx.fillStyle = "#18181b";
-    ctx.beginPath();
-    ctx.arc(cx, cy, 32, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#71717a";
-    ctx.lineWidth = 4;
-    ctx.stroke();
-
-    // Glühendes mörderisches Auge
+    ctx.fillStyle = "#09090b"; ctx.shadowBlur = 40; ctx.shadowColor = "rgba(0,0,0,0.8)";
+    ctx.fillRect(x, y, size * 2.5, size); ctx.strokeStyle = "#27272a"; ctx.lineWidth = 3; ctx.strokeRect(x, y, size * 2.5, size);
+    ctx.strokeStyle = "rgba(255,255,255,0.06)"; ctx.lineWidth = 1;
+    for(let i = 1; i < 6; i++) { ctx.strokeRect(x + (size * i) * 0.4, y + 10, 15, size - 20); }
+    const cx = x + (size * 2.5) / 2; const cy = y + size / 2;
+    ctx.fillStyle = "#18181b"; ctx.beginPath(); ctx.arc(cx, cy, 32, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#71717a"; ctx.lineWidth = 4; ctx.stroke();
     const pulse = 10 + Math.sin(performance.now() * 0.012) * 2;
-    ctx.fillStyle = "#ff1e1e";
-    ctx.shadowColor = "#ff0000";
-    ctx.shadowBlur = 30;
-    ctx.beginPath();
-    ctx.arc(cx, cy, pulse, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Pupillenkern
-    ctx.fillStyle = "#fef08a";
-    ctx.shadowBlur = 5;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = "#ff1e1e"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 30; ctx.beginPath(); ctx.arc(cx, cy, pulse, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fef08a"; ctx.shadowBlur = 5; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
   }
 
   private drawPrimitiveBoneSkiff(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
@@ -171,10 +206,6 @@ export class RenderSystem implements System {
   private drawLunarSatellite(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 2; ctx.strokeRect(x + 4, y + 4, size - 8, size - 8);
     ctx.beginPath(); ctx.moveTo(x, y + size / 2); ctx.lineTo(x + size, y + size / 2); ctx.moveTo(x + size / 2, y); ctx.lineTo(x + size / 2, y + size); ctx.stroke();
-  }
-
-  private drawEVAPod(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-    ctx.strokeStyle = "#eab308"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2); ctx.stroke();
   }
 
   private drawXFighter(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
