@@ -9,13 +9,23 @@ import { Health } from "../components/Health";
 export class ActDirectorSystem implements System {
   private activeAct = 0;
   private activeLevel = 0;
+  private waveSpawned = false; // Taktischer Sicherheits-Schild gegen voreiliges Level-Skipping
 
-  update(entities: Entity[], engine: Engine, delta: number): void {
+  public update = (entities: Entity[], engine: Engine, delta: number): void => {
+    // Erkennt das harte Reset-Signal der Engine bei jedem Ableben
+    if (engine.levelResetPending) {
+      this.activeAct = 0;
+      this.activeLevel = 0;
+      this.waveSpawned = false; // Sperrt den automatischen Durchlauf
+      engine.levelResetPending = false;
+    }
+
     if (engine.state === "CINEMATIC") return;
     if (engine.state !== "PLAYING") return;
 
-    // TRANSFER-WELLEN-LOGIK BEI EINEM AKT- ODER SEKTORWECHSEL
+    // PROGRESSIONS-KONTROLLE BEI AKT- ODER LEVELWECHSEL
     if (this.activeAct !== engine.currentAct || this.activeLevel !== engine.currentLevel) {
+      this.waveSpawned = false; // Welle für den neuen Sektor vorbereiten
       if (engine.currentLevel === 1) {
         this.activeAct = engine.currentAct;
         engine.checkpointAct = engine.currentAct;
@@ -29,18 +39,19 @@ export class ActDirectorSystem implements System {
       return;
     }
 
-    // DIAGNOSE DES AKTUELLEN FEINDVOLUMENS
+    // FEINDVOLUMEN REAL IM SPEICHER ERFASSEN
     const currentInvaders = entities.filter(e => 
       engine.em.hasComponent(e, "Collider") && 
       engine.em.getComponent<Collider>(e, "Collider")!.faction === "INVADER"
     );
 
-    if (currentInvaders.length === 0) {
-      if (engine.currentAct === 5 && engine.currentLevel === 4) return; // Wartet auf HALs Zerstörung
+    // ABSOLUTE DOSIERUNGSSPERRE: Level darf nur inkrementiert werden, wenn die Welle aktiv gestartet wurde und real auf 0 sinkt
+    if (this.waveSpawned && currentInvaders.length === 0) {
+      if (engine.currentAct === 5 && engine.currentLevel === 4) return; // Wartet auf HALs finale Zerstörung
 
+      this.waveSpawned = false;
       engine.currentLevel += 1;
 
-      // Jedes Kapitel besitzt exakt 4 Sektoren
       if (engine.currentLevel > 4) {
         engine.currentAct += 1;
         engine.currentLevel = 1;
@@ -60,7 +71,7 @@ export class ActDirectorSystem implements System {
 
   private buildProgressiveWaveLayout(engine: Engine) {
     this.clearSimulationSpace(engine);
-    engine.logDebug(`GENERATING ENEMY COORDINATES: ACT ${engine.currentAct} // SECTOR ${engine.currentLevel}`);
+    engine.logDebug(`MATERIALIZING SPECTRUM: ACT 0${engine.currentAct} // LEVEL 0${engine.currentLevel}`);
 
     switch (engine.currentAct) {
       case 1:
@@ -97,7 +108,6 @@ export class ActDirectorSystem implements System {
         }
         break;
       case 4:
-        // KORREKTUR: Akt 4 besitzt nun 4 standardisierte progressive Levels statt Evasion-Runner!
         if (engine.currentLevel === 2) {
           this.spawnHordeFormation(engine, 1, "xfighter");
           this.spawnHordeFormation(engine, 1, "satellite");
@@ -122,6 +132,7 @@ export class ActDirectorSystem implements System {
         }
         break;
     }
+    this.waveSpawned = true; // Kampffreigabe erteilt
   }
 
   private executeActTransition(engine: Engine): void {
@@ -141,7 +152,6 @@ export class ActDirectorSystem implements System {
         engine.triggerCinematic("AKT II: TMA-1 MONDKRATER", [
           "Das Tycho-Monument sendet einen hochenergetischen Impuls aus.",
           "Durchbrich das Abwehrnetzwerk aus Monolithen und Satelliten!",
-          "Der interstellare Raum ruft nach uns.",
           "KAMPAGNEN-BEREICH // SEKTOR 05 BIS 08"
         ]);
         this.spawnMatrixFormation(engine, 3, "monolith");
@@ -158,7 +168,6 @@ export class ActDirectorSystem implements System {
         break;
 
       case 4:
-        // KORREKTUR: Text-Inhalt für das neue koordinierte Sektornetzwerk angepasst
         engine.triggerCinematic("AKT IV: DAS STERNENTOR", [
           "Die Schleusen brechen auf. Du betrittst ein unendliches Raumgitter.",
           "Durchbrich die Vorhut der Abfangjäger und orbitalen Satelliten!",
@@ -179,15 +188,16 @@ export class ActDirectorSystem implements System {
         this.spawnHordeFormation(engine, 1, "alien");
         break;
     }
+    this.waveSpawned = true; // Kampffreigabe erteilt
   }
 
-  private spawnHal9000MegaBoss(engine: Engine) {
+  private spawnHal9000MegaBoss = (engine: Engine): void => {
     const boss = engine.em.createEntity();
-    engine.em.addComponent(boss, new Position(engine.ctx.canvas.width / 2 - 100, 140));
+    const viewWidth = engine.ctx.canvas.width > 300 ? engine.ctx.canvas.width : window.innerWidth;
+    engine.em.addComponent(boss, new Position(viewWidth / 2 - 100, 140));
     engine.em.addComponent(boss, new Renderable("#18181b", 80, "hal9000_boss"));
     engine.em.addComponent(boss, new Collider(200, 80, "INVADER"));
     
-    // MASSIVER BOSS BUFF: HP verdoppelt für gigantischen Widerstand
     const hp = engine.difficultyMode === "EASY" ? 300 : engine.difficultyMode === "HARDCORE" ? 900 : 500;
     engine.em.addComponent(boss, new Health(hp, hp));
   }
@@ -199,7 +209,9 @@ export class ActDirectorSystem implements System {
   }
 
   private spawnHordeFormation(engine: Engine, rows: number, type: any) {
-    const cols = Math.min(8, Math.floor(engine.ctx.canvas.width / 130));
+    // SOTA SCHUTZWALL: Nutzt window.innerWidth bei temporärem Canvas-Kollaps während Overlay-Wechseln
+    const viewWidth = engine.ctx.canvas.width > 300 ? engine.ctx.canvas.width : window.innerWidth;
+    const cols = Math.min(8, Math.floor(viewWidth / 130));
     let color = "#5e4a3f";
     if (type === "predator") color = "#f97316";
     if (type === "satellite") color = "#cbd5e1";
@@ -221,10 +233,11 @@ export class ActDirectorSystem implements System {
   }
 
   private spawnMatrixFormation(engine: Engine, rows: number, type: any) {
-    const cols = Math.min(8, Math.floor(engine.ctx.canvas.width / 120));
+    // SOTA SCHUTZWALL: Nutzt window.innerWidth bei temporärem Canvas-Kollaps während Overlay-Wechseln
+    const viewWidth = engine.ctx.canvas.width > 300 ? engine.ctx.canvas.width : window.innerWidth;
     const color = type === "monolith" ? "#000000" : "#ff3333";
     for (let row = 0; row < rows; row++) {
-      for (let col = 0; col * 115 < engine.ctx.canvas.width - 200; col++) {
+      for (let col = 0; col * 115 < viewWidth - 200; col++) {
         const e = engine.em.createEntity();
         engine.em.addComponent(e, new Position(140 + col * 115, 130 + row * 75));
         engine.em.addComponent(e, new Renderable(color, 24, type));
