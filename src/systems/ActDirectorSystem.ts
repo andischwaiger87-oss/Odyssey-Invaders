@@ -19,60 +19,72 @@ export class ActDirectorSystem implements System {
       engine.warpTimerDisplay = this.warpSurvivalTimer;
     }
 
+    // --- SOTA REPARATUR: KRYPTO-WARP MEILENSTEIN INTERZEPTION ---
     if (this.activeAct !== engine.currentAct || this.activeLevel !== engine.currentLevel) {
-      if (this.activeAct === engine.currentAct && engine.currentAct !== 4) {
-        this.buildProgressiveWaveLayout(engine);
-      } else {
+      
+      if (engine.currentAct === 4) {
+        this.clearSimulationSpace(engine);
+        this.warpSurvivalTimer = 15.0;
+        engine.logDebug(`STARGATE CORRIDOR ENGAGED // TIME TUNNEL SECTOR: 0${engine.currentLevel}`);
+      } else if (engine.currentLevel === 1) {
+        // Regulärer Kapitelübergang mit kinoreifer Titelkarte
         this.activeAct = engine.currentAct;
         engine.checkpointAct = engine.currentAct;
         engine.checkpointLevel = 1;
         this.executeActTransition(engine);
+      } else {
+        // DIREKTZÜNDUNG: Erzeugt das spezifische Unterlevel direkt ohne Level-1-Zwangsschleife
+        this.buildProgressiveWaveLayout(engine);
       }
+      
+      this.activeAct = engine.currentAct;
       this.activeLevel = engine.currentLevel;
       return;
     }
 
-    // AKT IV: PROGRESSIVE SURVIVAL LEVEL-STRUKTUR (SEKTOR 1 BIS 3)
+    // AKT IV: SURVIVAL RUNNER TIMER TRACKING
     if (engine.currentAct === 4) {
       this.warpSurvivalTimer -= delta;
-      
-      // Anomalien stürzen je nach Sektor rascher herab
       const density = engine.currentLevel === 1 ? 0.12 : engine.currentLevel === 2 ? 0.16 : 0.22;
       if (Math.random() < density) this.spawnHordeFormation(engine, 1, "cube");
       if (Math.random() < 0.06) this.spawnHordeFormation(engine, 1, "echo");
 
       if (this.warpSurvivalTimer <= 0) {
         engine.currentLevel += 1;
-        this.warpSurvivalTimer = 15.0; // Reset für den nächsten Sektor
+        this.warpSurvivalTimer = 15.0;
 
         if (engine.currentLevel > 3) {
           engine.currentAct = 5;
           engine.currentLevel = 1;
-          engine.logDebug("STARGATE SURVIVED // LOADING TRANSCENDENT APEX SHIELD");
+          engine.logDebug("STARGATE SURVIVED // PARSING HIGHER ENTITY DIMENSIONS");
         } else {
           this.clearSimulationSpace(engine);
-          engine.logDebug(`STARGATE DISTORTION INCREASING // ENTERING SECTOR 0${engine.currentLevel}`);
+          engine.logDebug(`STARGATE ACCELERATION // LOADING TRANS-SECTOR: 0${engine.currentLevel}`);
         }
       }
       return;
     }
 
-    // WELLENKONTROLLE FÜR AKTE I, II, III UND V
+    // WELLENPRÜFUNG DER STRATEGISCHEN INVASOREN
     const currentInvaders = entities.filter(e => 
       engine.em.hasComponent(e, "Collider") && 
       engine.em.getComponent<Collider>(e, "Collider")!.faction === "INVADER"
     );
 
     if (currentInvaders.length === 0) {
+      if (engine.currentAct === 5 && engine.currentLevel === 4) {
+        engine.state = "GAMEWON";
+        engine.logDebug("EVOLUTION MATRIX COMPLETE // TERMINATED MAIN INFRASTRUCTURE");
+        return;
+      }
+
       engine.currentLevel += 1;
 
-      // Jedes reguläre Kapitel besitzt exakt 4 progressive Levels
       if (engine.currentLevel > 4) {
         engine.currentAct += 1;
         engine.currentLevel = 1;
       }
 
-      // INTEGRATION FIX: Sofortige Wellengenerierung zur Verhinderung von Frame-Vakuum
       if (engine.currentAct !== 4) {
         if (this.activeAct !== engine.currentAct) {
           this.activeAct = engine.currentAct;
@@ -89,11 +101,13 @@ export class ActDirectorSystem implements System {
 
   private buildProgressiveWaveLayout(engine: Engine) {
     this.clearSimulationSpace(engine);
-    engine.logDebug(`MATERIALIZING PHALANX: ACT 0${engine.currentAct} // LEVEL 0${engine.currentLevel}`);
+    engine.logDebug(`MATERIALIZING SPECTRUM: ACT 0${engine.currentAct} // LEVEL 0${engine.currentLevel}`);
 
     switch (engine.currentAct) {
       case 1:
-        if (engine.currentLevel === 2) {
+        if (engine.currentLevel === 1) {
+          this.spawnHordeFormation(engine, 1, "cube");
+        } else if (engine.currentLevel === 2) {
           this.spawnHordeFormation(engine, 1, "cube");
           this.spawnHordeFormation(engine, 1, "predator");
         } else if (engine.currentLevel === 3) {
@@ -104,7 +118,9 @@ export class ActDirectorSystem implements System {
         }
         break;
       case 2:
-        if (engine.currentLevel === 2) {
+        if (engine.currentLevel === 1) {
+          this.spawnMatrixFormation(engine, 3, "monolith");
+        } else if (engine.currentLevel === 2) {
           this.spawnMatrixFormation(engine, 2, "monolith");
           this.spawnHordeFormation(engine, 1, "satellite");
         } else if (engine.currentLevel === 3) {
@@ -115,7 +131,9 @@ export class ActDirectorSystem implements System {
         }
         break;
       case 3:
-        if (engine.currentLevel === 2) {
+        if (engine.currentLevel === 1) {
+          this.spawnMatrixFormation(engine, 1, "cube");
+        } else if (engine.currentLevel === 2) {
           this.spawnHordeFormation(engine, 1, "xfighter");
           this.spawnHordeFormation(engine, 1, "evapod");
         } else if (engine.currentLevel === 3) {
@@ -126,15 +144,17 @@ export class ActDirectorSystem implements System {
         }
         break;
       case 5:
-        if (engine.currentLevel === 2) {
+        if (engine.currentLevel === 1) {
+          this.spawnMatrixFormation(engine, 2, "monolith");
+          this.spawnHordeFormation(engine, 1, "alien");
+        } else if (engine.currentLevel === 2) {
           this.spawnHordeFormation(engine, 2, "xfighter");
           this.spawnHordeFormation(engine, 2, "alien");
         } else if (engine.currentLevel === 3) {
-          // AKT V LEVEL 3 RE-AKTIVIERUNG: Matrix-Blöcke + Aliens + furiose Warp-Spiralen im Background!
           this.spawnMatrixFormation(engine, 2, "monolith");
           this.spawnHordeFormation(engine, 2, "alien");
         } else if (engine.currentLevel === 4) {
-          // AKT V LEVEL 4: SOTA BOSS Showdown gegen HAL 9000!
+          // ZIELWARP ERREICHT: Spawnt direkt den HAL-9000 Endgegner
           this.spawnHal9000MegaBoss(engine);
         }
         break;
@@ -147,8 +167,9 @@ export class ActDirectorSystem implements System {
     switch (engine.currentAct) {
       case 1:
         engine.triggerCinematic("AKT I: DIE WIEGE DER MENSCHHEIT", [
-          "Urzeitliche Dürre Afrikas. Ein Pechschwarzer Monolith mutiert Zellen.",
-          "Weiche den Stammes-Skiffs und wilden Raubtieren aus!",
+          "Morgendämmerung Ostafrikas. Ein außerirdisches Monument erwacht.",
+          "Weiche den prähistorischen Skiffs und schnellen Raubtieren aus!",
+          "Die Evolution bricht sich ihre Bahn.",
           "SEKTOR-WELLEN: 01 BIS 04 [I-TASTE FÜR TELEMETRIE]"
         ]);
         this.spawnHordeFormation(engine, 1, "cube");
@@ -156,18 +177,20 @@ export class ActDirectorSystem implements System {
 
       case 2:
         engine.triggerCinematic("AKT II: TMA-1 MONDKRATER", [
-          "Mondoberfläche Krater Tycho. Ein Funke schießt hochfrequent zum Jupiter.",
-          "Durchbrich das lunare Abwehrgitter und interstellare Aliens!",
-          "SEKTOR-WELLEN: 05 BIS 08"
+          "Das Tycho-Monument sendet einen hochenergetischen Impuls aus.",
+          "Durchbrich das Abwehrnetzwerk aus Monolithen und Satelliten!",
+          "Der Kosmos ruft nach uns.",
+          "KAMPAGNEN-BEREICH // SEKTOR 05 BIS 08"
         ]);
         this.spawnMatrixFormation(engine, 3, "monolith");
         break;
 
       case 3:
         engine.triggerCinematic("AKT III: DIE JUPITER-MISSION", [
-          "An Bord der Discovery One. HAL 9000 trennt die Biologie-Systeme.",
-          "Säubere HALs Kerne und entkomme den imperialen X-Fightern!",
-          "SEKTOR-WELLEN: 09 BIS 12"
+          "An Bord der Discovery One. HAL 9000 übernimmt die totale Kontrolle.",
+          "TRENNE HALs LOGIKKERNE UND WEICHE DEN ROTEN X-FIGHTERN AUS!",
+          "Es gibt keine Fehlfunktionen in der 9000er Serie, Dave.",
+          "KAMPAGNEN-BEREICH // SEKTOR 09 BIS 12"
         ]);
         this.spawnMatrixFormation(engine, 1, "cube");
         break;
@@ -181,10 +204,11 @@ export class ActDirectorSystem implements System {
         break;
 
       case 5:
-        engine.triggerCinematic("AKT V: DIE TRANSMUTATION (DAS FINALE)", [
-          "Am Nullpunkt des Kosmos formiert sich die absolute Entität.",
-          "Zerschlage die Mutationen und rüste dich für den finalen Showdown!",
-          "VERNICHTE HAL 9000 IN SEKTOR 4 FÜR DIE ZUFLUCHT!"
+        engine.triggerCinematic("AKT V: DIE METAMORPHOSE (DAS FINALE)", [
+          "Am absoluten Nullpunkt der Existenz manifestiert sich die Urform.",
+          "Der Monolith entfesselt das unerbittliche Elite-Kreuzfeuer.",
+          "VERNICHTE DIE LETZTE MATRIX IN SEKTOR 4 FÜR DEN SIEG!",
+          "DAS REINE HIGH-END FINALE STARTET JETZT!"
         ]);
         this.spawnMatrixFormation(engine, 2, "monolith");
         this.spawnHordeFormation(engine, 1, "alien");
@@ -194,12 +218,10 @@ export class ActDirectorSystem implements System {
 
   private spawnHal9000MegaBoss(engine: Engine) {
     const boss = engine.em.createEntity();
-    // Mittig an der Decke platzieren
     engine.em.addComponent(boss, new Position(engine.ctx.canvas.width / 2 - 100, 140));
     engine.em.addComponent(boss, new Renderable("#18181b", 80, "hal9000_boss"));
     engine.em.addComponent(boss, new Collider(200, 80, "INVADER"));
     
-    // Boss-Lebenspunkte je nach gewähltem Schwierigkeitsgrad skalieren
     const hp = engine.difficultyMode === "EASY" ? 20 : engine.difficultyMode === "HARDCORE" ? 45 : 30;
     engine.em.addComponent(boss, new Health(hp, hp));
   }

@@ -30,7 +30,7 @@ export class Engine {
   private fps = 0;
   private frameCount = 0;
   private fpsTimer = 0;
-  public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // RESOLVED SCOPE OVERLOAD";
+  public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // ENTRANT ENVELOPE STABLE";
 
   // Countdown Spiegel-Timer für Akt IV
   public warpTimerDisplay = 15.0;
@@ -73,7 +73,6 @@ export class Engine {
   }
 
   private bindDOMEvents() {
-    // Dynamische Koppelung der Oszillator-Anzeige im Einstellungsbalken
     const volInput = document.getElementById("cfg-volume") as HTMLInputElement;
     const volVal = document.getElementById("cfg-volume-val");
     if (volInput && volVal) {
@@ -89,7 +88,6 @@ export class Engine {
       });
     }
 
-    // INTERFACE MODAL-STEUERUNG (Öffnen und Schließen des Einstellungsfensters)
     const openSettingsBtn = document.getElementById("open-settings-btn");
     const closeSettingsBtn = document.getElementById("close-settings-btn");
     const settingsModal = document.getElementById("settings-modal");
@@ -111,7 +109,7 @@ export class Engine {
         if (hint) hint.textContent = this.controlInterface === "MOUSE" ? "STEUERUNG: MAUS / TOUCH INTERFACE" : "STEUERUNG: VAKTOR-TASTEN (A / D)";
       }
 
-      // SOTA KRYPTO-WARP-INJEKTION VERARBEITEN (Sperrt Zugriff per verschlüsseltem Abgleich)
+      // SOTA KRYPTO-WARP-INJEKTION VERARBEITEN
       const warpContainer = document.getElementById("warp-level-container");
       const warpSelect = document.getElementById("cfg-warp-select") as HTMLSelectElement;
       if (warpContainer && !warpContainer.classList.contains("hidden") && warpSelect) {
@@ -122,12 +120,10 @@ export class Engine {
         this.checkpointAct = act;
         this.checkpointLevel = lvl;
 
-        // Spielervolumen behalten, alles andere terminieren
         this.em.getAllEntities().forEach(e => {
           if (!this.em.hasComponent(e, "Health")) this.em.destroyEntity(e);
         });
 
-        // Setze den State explizit auf PLAYING, falls der Warp aus dem Hauptmenü heraus gestartet wird
         if (this.state === "START" || this.state === "GAMEOVER") {
           const overlay = document.getElementById("screen-overlay");
           const hud = document.getElementById("hud");
@@ -142,7 +138,6 @@ export class Engine {
       }
     });
 
-    // ASYNCHRONER DEKODIERUNGS-PROZESSOR (Verhindert Console-Hacking über SHA-256 Validierung)
     const unlockWarpBtn = document.getElementById("unlock-warp-btn");
     unlockWarpBtn?.addEventListener("click", async () => {
       const pwInput = document.getElementById("cfg-warp-pw") as HTMLInputElement;
@@ -154,7 +149,6 @@ export class Engine {
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 
-      // SOTA SECURITY: SHA-256 Signatur-Hash von "9438" (Verhindert Strings-Scanning im Bundle)
       const targetHash = "0364c0e99a363153542157dddb22ebbbc63d22c6633c6b001a7bf6c98e82f2e9";
       const statusText = document.getElementById("warp-status-text");
       const container = document.getElementById("warp-level-container");
@@ -188,7 +182,7 @@ export class Engine {
       if (overlay) overlay.style.display = "none";
       if (hud) hud.classList.remove("opacity-0");
       
-      this.endStateTriggered = false; // Zurücksetzen der Endscreen-Sperre
+      this.endStateTriggered = false;
 
       if (this.state === "GAMEOVER" || this.state === "GAMEWON") {
         if (this.state === "GAMEWON") {
@@ -211,11 +205,10 @@ export class Engine {
             const comp = this.em.getComponent<Health>(e, "Health")!;
             comp.max = this.lives;
             comp.current = this.lives;
-            comp.invulnerableTimer = 2.0; // Spawnschutz
+            comp.invulnerableTimer = 2.0;
           }
         });
       } else {
-        // Erststart über Voreinstellungen abgreifen
         const diffSelect = document.getElementById("cfg-difficulty") as HTMLSelectElement;
         if (diffSelect) this.difficultyMode = diffSelect.value;
         
@@ -329,12 +322,12 @@ export class Engine {
 
     this.syncDOMHUD();
 
-    if (this.debugActive) this.renderDebugUI(entityCount);
+    // SOTA ARCHITEKTUR-REPARATUR: Variable 'entities.length' statt undefiniertem Typ übergeben
+    if (this.debugActive) this.renderDebugUI(entities.length);
 
     if (this.lives <= 0 && this.state === "PLAYING" && !this.endStateTriggered) {
       this.state = "GAMEOVER";
       this.endStateTriggered = true;
-      this.logDebug("FATAL SYSTEM INTEGRITY DAMAGE // OPENING ENDREBOOT CARD");
       this.handleEndState(false);
     }
 
@@ -359,6 +352,8 @@ export class Engine {
     const livesEl = document.getElementById("ui-lives");
 
     if (scoreEl) scoreEl.textContent = `SCORE // ${this.score.toString().padStart(6, '0')}`;
+    
+    // SOTA ARCHITEKTUR-REPARATUR: Dynamische Textanzeige statt statischem Hardcode-String
     if (actEl) {
       if (this.currentAct === 4) actEl.textContent = `AKT 04 - THE STARGATE`;
       else actEl.textContent = `AKT 0${this.currentAct} - SEKTOR ${this.currentLevel}`;
@@ -390,6 +385,20 @@ export class Engine {
       <div>LAST MEILENSTEIN:   <span class="text-white">ACT 0${this.checkpointAct} // LEVEL 0${this.checkpointLevel}</span></div>
       <div class="text-amber-400 border-t border-emerald-500/20 mt-1 pt-1">TRACE OUT: ${this.lastDebugLog}</div>
     `;
+  }
+
+  private renderStargateWarp(time: number) {
+    const cx = this.ctx.canvas.width / 2;
+    const cy = this.ctx.canvas.height / 2;
+    const maxRadius = Math.max(cx, cy);
+    for (let i = 0; i < 40; i++) {
+      const r = ((i * 22 + time * 140) % maxRadius);
+      this.ctx.strokeStyle = `hsla(${(i * 12 + time * 60) % 360}, 100%, 50%, ${1 - r / maxRadius})`;
+      this.ctx.lineWidth = 3;
+      this.ctx.beginPath();
+      this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      this.ctx.stroke();
+    }
   }
 
   private handleEndState(won: boolean) {
