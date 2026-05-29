@@ -1,5 +1,6 @@
 import { EntityManager, System } from "./ECS";
 import { sfx } from "./AudioEngine";
+import { Health } from "../components/Health";
 
 export type GameState = "START" | "PLAYING" | "CINEMATIC" | "GAMEOVER" | "GAMEWON";
 
@@ -9,14 +10,14 @@ export class Engine {
   private systems: System[] = [];
   private lastTime = 0;
 
-  // Globaler Spielzustand (Kampagnen-Erweiterung)
+  // Globale Spielzustände
   public score = 0;
   public lives = 3;
   public currentAct = 0;
-  public currentLevel = 1; // Jetzt 4 Sektoren pro Akt!
+  public currentLevel = 1;
   public state: GameState = "START";
 
-  // Checkpoint-Speicherzellen (Fixiert auf den Beginn des jeweiligen Akts)
+  // Checkpoint-Archiv (Streng limitiert auf den Beginn des jeweiligen Akts)
   public checkpointAct = 1;
   public checkpointLevel = 1;
 
@@ -25,7 +26,7 @@ export class Engine {
   private fps = 0;
   private frameCount = 0;
   private fpsTimer = 0;
-  public lastDebugLog = "SYSTEM RE-CALIBRATED // ALL SCHEMATICS NOMINAL";
+  public lastDebugLog = "DIAGNOSTIC CORE RUNNING // CHECKPOINT LAYER RE-CALIBRATED";
 
   private shakeDuration = 0;
   private shakeIntensity = 0;
@@ -76,16 +77,25 @@ export class Engine {
         this.currentLevel = this.checkpointLevel;
         this.lives = 3;
         this.state = "PLAYING";
-        this.logDebug(`RE-INITIALIZING SIMULATION FROM CHECKPOINT ENVELOPE: ACT ${this.checkpointAct}`);
         
+        this.logDebug(`REBOOT SYSTEM: FETCHING DATA FOR ACT ${this.checkpointAct}`);
+        
+        // Bereinige alte Projektile und Trümmer
         this.em.getAllEntities().forEach(e => {
-          if (!this.em.hasComponent(e, "Health")) this.em.destroyEntity(e);
+          if (!this.em.hasComponent(e, "Health")) {
+            this.em.destroyEntity(e);
+          } else {
+            // SOTA BUGFIX: Setzt die physikalische ECS-Komponente des Spielers wieder auf Maximum zurück!
+            const comp = this.em.getComponent<Health>(e, "Health")!;
+            comp.current = comp.max;
+            comp.invulnerableTimer = 2.0; // Gewährt 2 Sekunden Spawnschutz nach dem Bildschirmtod
+          }
         });
       } else {
         this.currentAct = 1;
         this.currentLevel = 1;
         this.state = "PLAYING";
-        this.logDebug("NEW ODYSSEY TIMELINE CONSTRUCTED");
+        this.logDebug("INITIAL ODYSSEY DIRECTED");
       }
     });
   }
@@ -147,7 +157,6 @@ export class Engine {
     const entities = this.em.getAllEntities();
 
     if (this.state === "PLAYING" || this.state === "CINEMATIC") {
-      // SOTA REPARATUR: Schaltet die psychedelischen Spiralen für Akt IV UND das furiose Akt V Finale frei!
       if (this.currentAct >= 4) {
         this.renderStargateWarp(currentTime / 1000);
       }
@@ -175,6 +184,7 @@ export class Engine {
 
     if (this.debugActive) this.renderDebugUI(entities.length);
 
+    // ZENTRALE SCHUTZPRÜFUNG: Game Over bricht erst aus, wenn die synchronisierten Leben auf 0 fallen
     if (this.lives <= 0 && this.state === "PLAYING") {
       this.state = "GAMEOVER";
       this.handleEndState(false);
@@ -213,13 +223,13 @@ export class Engine {
       document.body.appendChild(panel);
     }
     panel.innerHTML = `
-      <div class="text-emerald-300 font-bold border-b border-emerald-500/20 pb-1 mb-1">HAL 9000 TELEMETRIE-DIAGNOSE</div>
-      <div>FREQUENCY:          <span class="text-white">${this.fps} FPS</span></div>
-      <div>CORE STATE:         <span class="text-white">${this.state}</span></div>
-      <div>ECS ENTITIES:       <span class="text-white">${entityCount}</span></div>
-      <div>ACTIVE SECTOR:      <span class="text-white">ACT 0${this.currentAct} // LEVEL 0${this.currentLevel}</span></div>
-      <div>MEILENSTEIN ACC:    <span class="text-white">ACT 0${this.checkpointAct} // LEVEL 0${this.checkpointLevel}</span></div>
-      <div class="text-amber-400 border-t border-emerald-500/20 mt-1 pt-1">TRACE: ${this.lastDebugLog}</div>
+      <div class="text-emerald-300 font-bold border-b border-emerald-500/20 pb-1 mb-1">HAL 9000 TELEMETRIE INTERFACE</div>
+      <div>FREQUENCY ENGINE:   <span class="text-white">${this.fps} FPS</span></div>
+      <div>CORE STATE MACHINE: <span class="text-white">${this.state}</span></div>
+      <div>ECS RANGE COUNTER:  <span class="text-white">${entityCount}</span></div>
+      <div>CURRENT CHAPTER:    <span class="text-white">ACT 0${this.currentAct} // SECTOR 0${this.currentLevel}</span></div>
+      <div>LAST CHECKPOINT:    <span class="text-white">ACT 0${this.checkpointAct} // LEVEL 0${this.checkpointLevel}</span></div>
+      <div class="text-amber-400 border-t border-emerald-500/20 mt-1 pt-1">TRACE OUT: ${this.lastDebugLog}</div>
     `;
   }
 
@@ -234,30 +244,6 @@ export class Engine {
       this.ctx.beginPath();
       this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
       this.ctx.stroke();
-    }
-  }
-
-  private handleEndState(won: boolean) {
-    const hud = document.getElementById("hud");
-    const overlay = document.getElementById("screen-overlay");
-    const title = document.getElementById("overlay-title");
-    const desc = document.getElementById("overlay-desc");
-    const btn = document.getElementById("start-btn");
-
-    if (hud) hud.classList.add("opacity-0");
-    if (overlay) overlay.style.display = "flex";
-    if (btn) btn.textContent = won ? "TRANZENDIEREN" : `REBOOT ZU AKT ${this.checkpointAct}`;
-    
-    if (title && desc) {
-      if (!won) {
-        title.textContent = "SYSTEM ERROR // DAVE";
-        title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#ff3333]";
-        desc.textContent = `Vollständiger Hüllenbruch. HAL 9000: "Diese Mission ist zu wichtig für mich, als dass ich dir erlauben dürfte, sie zu gefährden." Wiederaufnahme ab Akt ${this.checkpointAct}.`;
-      } else {
-        title.textContent = "THE STAR CHILD";
-        title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#00ffcc] drop-shadow-[0_0_15px_rgba(0,255,204,0.6)] animate-pulse";
-        desc.textContent = "Die Metamorphose ist abgeschlossen. Du hast den ewigen Zyklus der Evolution durchbrochen und die Unendlichkeit betreten.";
-      }
     }
   }
 }
