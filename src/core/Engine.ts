@@ -9,25 +9,25 @@ export class Engine {
   private systems: System[] = [];
   private lastTime = 0;
 
-  // Globale States
+  // Globale Spielzustände
   public score = 0;
   public lives = 3;
   public currentAct = 0;
   public currentLevel = 1;
   public state: GameState = "START";
 
-  // Checkpoint-Zelle
+  // Meilenstein-Checkpoints
   public checkpointAct = 1;
   public checkpointLevel = 1;
 
-  // SOTA DEBUG SYSTEM MODUS
+  // SOTA Live-Telemetrie & Diagnose
   public debugActive = false;
   private fps = 0;
   private frameCount = 0;
   private fpsTimer = 0;
-  public lastDebugLog = "SYSTEM INITIALIZED // NO ERRORS DETECTED";
+  public lastDebugLog = "SYSTEM INITIALIZED // ALL MODULES NOMINAL";
 
-  // Screen Shake
+  // Juice & Effekte
   private shakeDuration = 0;
   private shakeIntensity = 0;
   private cinematicTimer = 0;
@@ -49,7 +49,7 @@ export class Engine {
 
   private setupDebugToggle() {
     window.addEventListener("keydown", (e) => {
-      if (e.code === "KeyI") { // 'I' blendet das SOTA-Diagnosefenster ein/aus
+      if (e.code === "KeyI") {
         this.debugActive = !this.debugActive;
         const panel = document.getElementById("debug-panel");
         if (panel) panel.classList.toggle("hidden", !this.debugActive);
@@ -77,7 +77,9 @@ export class Engine {
         this.currentLevel = this.checkpointLevel;
         this.lives = 3;
         this.state = "PLAYING";
-        this.logDebug(`SYSTEM RESUMED FROM CHECKPOINT: ACT ${this.checkpointAct}`);
+        this.logDebug(`RE-INITIALIZING SIMULATION CONTEXT FROM ACT ${this.checkpointAct}`);
+        
+        // Lösche alle Reste, behalte nur den Spieler
         this.em.getAllEntities().forEach(e => {
           if (!this.em.hasComponent(e, "Health")) this.em.destroyEntity(e);
         });
@@ -85,7 +87,7 @@ export class Engine {
         this.currentAct = 1;
         this.currentLevel = 1;
         this.state = "PLAYING";
-        this.logDebug("NEW SIMULATION CONTEXT STARTED");
+        this.logDebug("NEW KUBRICKIAN EVOLUTION DIRECTED");
       }
     });
   }
@@ -123,7 +125,7 @@ export class Engine {
 
     if (delta > 0.1) delta = 0.1;
 
-    // FPS Berechnung
+    // Diagnose-Frame-Zählung
     this.frameCount++;
     this.fpsTimer += delta;
     if (this.fpsTimer >= 1.0) {
@@ -171,12 +173,15 @@ export class Engine {
 
     this.ctx.restore();
 
+    // SOTA FIX: HUD wird immer gerendert, um den Letzten Frame vor dem Ableben abzubilden
     this.syncDOMHUD();
+
     if (this.debugActive) this.renderDebugUI(entities.length);
 
-    if (this.lives <= 0 && this.state !== "GAMEOVER") {
+    // CENTRALIZED STATE TRIGGER: Wechselt sauber in den Game Over Modus ohne Blockade
+    if (this.lives <= 0 && this.state === "PLAYING") {
       this.state = "GAMEOVER";
-      this.logDebug("FATAL ENGINE FAILURE: LIVES DROPPED TO 0");
+      this.logDebug("CRITICAL ENGINE TERMINATION // LIVES EMPTY");
       this.handleEndState(false);
     }
 
@@ -188,7 +193,6 @@ export class Engine {
   }
 
   private syncDOMHUD() {
-    if (this.state !== "PLAYING") return;
     const scoreEl = document.getElementById("ui-score");
     const actEl = document.getElementById("ui-act");
     const livesEl = document.getElementById("ui-lives");
@@ -210,17 +214,17 @@ export class Engine {
     if (!panel) {
       panel = document.createElement("div");
       panel.id = "debug-panel";
-      panel.className = "absolute bottom-16 left-6 bg-black/90 border border-emerald-500/40 p-4 font-mono text-[10px] text-emerald-400 space-y-1 z-50 rounded shadow-2xl";
+      panel.className = "absolute bottom-16 left-6 bg-black/95 border border-emerald-500/40 p-4 font-mono text-[10px] text-emerald-400 space-y-1 z-50 rounded shadow-2xl pointer-events-none";
       document.body.appendChild(panel);
     }
     panel.innerHTML = `
-      <div class="text-emerald-300 font-bold border-b border-emerald-500/20 pb-1 mb-1">HAL 9000 TELEMETRIE-CONSOLE</div>
-      <div>FPS ENGINE:        <span class="text-white">${this.fps}</span></div>
-      <div>STATE MACHINE:     <span class="text-white">${this.state}</span></div>
+      <div class="text-emerald-300 font-bold border-b border-emerald-500/20 pb-1 mb-1">HAL 9000 REALTIME TELEMETRIE</div>
+      <div>CORE FREQUENCY:    <span class="text-white">${this.fps} FPS</span></div>
+      <div>CORE STATE:        <span class="text-white">${this.state}</span></div>
       <div>ACTIVE ENTITIES:   <span class="text-white">${entityCount}</span></div>
-      <div>CURRENT ACT/LVL:   <span class="text-white">A0${this.currentAct} // L0${this.currentLevel}</span></div>
-      <div>CHECKPOINT LOCK:   <span class="text-white">A0${this.checkpointAct} // L0${this.checkpointLevel}</span></div>
-      <div class="text-amber-400 border-t border-emerald-500/20 mt-1 pt-1">STREAM: ${this.lastDebugLog}</div>
+      <div>ACTIVE MEILE:      <span class="text-white">ACT 0${this.currentAct} // LVL 0${this.currentLevel}</span></div>
+      <div>SAFE CHECKPOINT:   <span class="text-white">ACT 0${this.checkpointAct} // LVL 0${this.checkpointLevel}</span></div>
+      <div class="text-amber-400 border-t border-emerald-500/20 mt-1 pt-1">LOGS: ${this.lastDebugLog}</div>
     `;
   }
 
@@ -253,11 +257,11 @@ export class Engine {
       if (!won) {
         title.textContent = "SYSTEM ERROR // DAVE";
         title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#ff3333]";
-        desc.textContent = `Kritischer Strukturverlust im All. Reboote Simulation aus Speicherzelle Akt ${this.checkpointAct}.`;
+        desc.textContent = `Die Lebenserhaltung wurde getrennt. HAL 9000: "Es tut mir leid, Dave." Starte neu ab Checkpoint Akt ${this.checkpointAct}.`;
       } else {
         title.textContent = "EVOLUTION COMPLETED";
         title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#00ffcc] drop-shadow-[0_0_15px_rgba(0,255,204,0.6)]";
-        desc.textContent = "Das Sternenkind ist geboren. Du hast alle Dimensionen durchbrochen.";
+        desc.textContent = "Du bist das Sternenkind. Die Transformation des Bewusstseins ist vollendet.";
       }
     }
   }

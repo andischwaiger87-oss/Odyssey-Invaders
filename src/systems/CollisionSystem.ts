@@ -1,7 +1,7 @@
 import { System, Entity } from "../core/ECS";
 import { Engine } from "../core/Engine";
 import { Position } from "../components/Position";
-import { Collider, FactionType } from "../components/Collider";
+import { Collider } from "../components/Collider";
 import { Health } from "../components/Health";
 import { Velocity } from "../components/Velocity";
 import { Renderable } from "../components/Renderable";
@@ -11,7 +11,7 @@ import { sfx } from "../core/AudioEngine";
 
 export class CollisionSystem implements System {
   update(entities: Entity[], engine: Engine, delta: number): void {
-    // I-Frame Timer für alle Entitäten mit Lebenskomponente runtertackern
+    // Unverwundbarkeits-Timer runtertackern
     for (const entity of entities) {
       if (engine.em.hasComponent(entity, "Health")) {
         const health = engine.em.getComponent<Health>(entity, "Health")!;
@@ -52,13 +52,11 @@ export class CollisionSystem implements System {
     }
   }
 
-  private handleCollision(engine: Engine, e1: Entity, f1: FactionType, e2: Entity, f2: FactionType) {
+  private handleCollision(engine: Engine, e1: Entity, f1: string, e2: Entity, f2: string) {
     
-    // Spieler-Laser trifft Invasor
+    // Spieler-Laser eliminiert Invasor
     if ((f1 === "PLAYER_LASER" && f2 === "INVADER") || (f2 === "PLAYER_LASER" && f1 === "INVADER")) {
       const invaderEntity = f1 === "INVADER" ? e1 : e2;
-      const laserEntity = f1 === "PLAYER_LASER" ? e1 : e2;
-      
       const pos = engine.em.getComponent<Position>(invaderEntity, "Position")!;
       const render = engine.em.getComponent<Renderable>(invaderEntity, "Renderable")!;
       
@@ -66,9 +64,10 @@ export class CollisionSystem implements System {
       ParticleSystem.spawnExplosion(engine, pos.x + 12, pos.y + 15, render.color, 20);
       sfx.playExplosion(true);
 
-      engine.logDebug(`COLLISION: PLAYER_LASER DESTROYED ${render.type.toUpperCase()}`);
+      engine.logDebug(`COLLISION: DISCOVERY LASER VAPORIZED ${render.type.toUpperCase()}`);
 
-      if (Math.random() < 0.12) this.dropPowerUp(engine, pos.x, pos.y);
+      // Ausbalancierte Drop-Garantie (15% Chance)
+      if (Math.random() < 0.15) this.dropBalancedPowerUp(engine, pos.x, pos.y);
 
       engine.em.destroyEntity(e1);
       engine.em.destroyEntity(e2);
@@ -76,22 +75,34 @@ export class CollisionSystem implements System {
       return;
     }
 
-    // Feindliches Geschoss trifft Spieler (Discovery One)
+    // Feindlicher Sabotage-Strahl trifft Spieler (Discovery One)
     if ((f1 === "INVADER_LASER" && f2 === "PLAYER") || (f2 === "INVADER_LASER" && f1 === "PLAYER")) {
       const playerEntity = f1 === "PLAYER" ? e1 : e2;
       const laserEntity = f1 === "PLAYER" ? e2 : e1;
       
       const health = engine.em.getComponent<Health>(playerEntity, "Health")!;
-      
-      // SOTA REPARATUR: Wenn I-Frames aktiv sind, verpufft der Treffer wirkungslos!
+      const pos = engine.em.getComponent<Position>(playerEntity, "Position")!;
+
+      // 1. SCHILD-MODIFIER PRÜFUNG: Absorbiert den Treffer komplett
+      const hasShield = engine.em.hasComponent(playerEntity, "Modifier") && 
+                        engine.em.getComponent<Modifier>(playerEntity, "Modifier")!.type === "SHIELD";
+
+      if (hasShield) {
+        engine.triggerScreenShake(0.2, 12);
+        ParticleSystem.spawnExplosion(engine, pos.x + 20, pos.y + 20, "#38bdf8", 30); // Blaue Schildfunken
+        engine.em.removeComponent(playerEntity, "Modifier"); // Schild bricht auf
+        engine.em.destroyEntity(laserEntity);
+        engine.logDebug("SHIELD DEFLECTED DEFECT // DEFLECTOR SHIELD DEPLETED");
+        return;
+      }
+
+      // 2. I-FRAME PRÜFUNG: Schützt vor Doppel-Frame-Toden
       if (health.invulnerableTimer > 0) {
         engine.em.destroyEntity(laserEntity);
         return;
       }
 
-      const pos = engine.em.getComponent<Position>(playerEntity, "Position")!;
-      engine.triggerScreenShake(0.4, 22);
-
+      engine.triggerScreenShake(0.4, 25);
       const flashEl = document.getElementById("damage-flash");
       if (flashEl) {
         flashEl.classList.remove("flash-active");
@@ -99,7 +110,7 @@ export class CollisionSystem implements System {
         flashEl.classList.add("flash-active");
       }
 
-      ParticleSystem.spawnExplosion(engine, pos.x + 20, pos.y + 20, "#ffffff", 35);
+      ParticleSystem.spawnExplosion(engine, pos.x + 20, pos.y + 20, "#ffffff", 40);
       sfx.playExplosion(false);
       engine.em.destroyEntity(laserEntity);
       
@@ -107,33 +118,60 @@ export class CollisionSystem implements System {
       engine.lives = health.current;
       health.invulnerableTimer = 1.2; // 1,2 Sekunden absolute Unverwundbarkeit
 
-      engine.logDebug(`IMPACT DETECTED // REMAINING LIVES: ${health.current}`);
-
-      if (health.current <= 0) {
-        engine.state = "GAMEOVER";
-      }
+      engine.logDebug(`INTEGRITY DAMAGE // REMAINING HULL CAPACITY: ${health.current}`);
       return;
     }
 
-    // Spieler sammelt Buff ein
-    if ((f1 === "PLAYER" && f2 === "POWERUP") || (f2 === "PLAYER" && f1 === "POWERUP")) {
+    // Spieler sammelt ein Power-Up ein
+    if ((f1 === "PLAYER" && f2.startsWith("POWERUP_")) || (f2 === "PLAYER" && f1.startsWith("POWERUP_"))) {
       const playerEntity = f1 === "PLAYER" ? e1 : e2;
       const powerUpEntity = f1 === "PLAYER" ? e2 : e1;
+      const faction = f1 === "PLAYER" ? f2 : f1;
 
       engine.triggerScreenShake(0.1, 5);
-      engine.em.addComponent(playerEntity, new Modifier("TRI_BEAM", 5.0));
+
+      if (faction === "POWERUP_TRI") {
+        engine.em.addComponent(playerEntity, new Modifier("TRI_BEAM", 6.0));
+        engine.logDebug("MATRIX CORE MODIFIED // WEAPON ENGAGED: TRI_BEAM");
+      } else if (faction === "POWERUP_SHIELD") {
+        engine.em.addComponent(playerEntity, new Modifier("SHIELD", 10.0));
+        engine.logDebug("DEFLECTOR FIELD SYNCED // SHIELD LAYER INITIALIZED");
+      } else if (faction === "POWERUP_LIFE") {
+        const health = engine.em.getComponent<Health>(playerEntity, "Health")!;
+        if (health.current < health.max) {
+          health.current += 1;
+          engine.lives = health.current;
+          engine.logDebug("REPAIR KIT APPLIED // STRUCTURAL INTEGRITY RESTORED");
+        } else {
+          engine.score += 1000; // Punkte-Bonus bei vollem Leben
+          engine.logDebug("INTEGRITY MAXED // OVERFLOW REWARD GRANTED");
+        }
+      }
+
       engine.em.destroyEntity(powerUpEntity);
-      engine.score += 500;
-      engine.logDebug("BUFF ACQUIRED // WEAPON MODE: TRI_BEAM ACTUATED");
+      engine.score += 250;
       return;
     }
   }
 
-  private dropPowerUp(engine: Engine, x: number, y: number) {
+  private dropBalancedPowerUp(engine: Engine, x: number, y: number) {
     const powerUp = engine.em.createEntity();
+    const rand = Math.random();
+    
+    let faction = "POWERUP_TRI";
+    let color = "#00ffcc"; // Mint: Tri-Beam
+
+    if (rand < 0.35) {
+      faction = "POWERUP_SHIELD";
+      color = "#38bdf8"; // Hellblau: Schild
+    } else if (rand < 0.55) {
+      faction = "POWERUP_LIFE";
+      color = "#f43f5e"; // Rose: Reparatur-Kit
+    }
+
     engine.em.addComponent(powerUp, new Position(x, y));
-    engine.em.addComponent(powerUp, new Velocity(0, 140));
-    engine.em.addComponent(powerUp, new Renderable("#00ffcc", 12, "cube"));
-    engine.em.addComponent(powerUp, new Collider(12, 12, "POWERUP"));
+    engine.em.addComponent(powerUp, new Velocity(0, 130));
+    engine.em.addComponent(powerUp, new Renderable(color, 14, "cube"));
+    engine.em.addComponent(powerUp, new Collider(14, 14, faction));
   }
 }

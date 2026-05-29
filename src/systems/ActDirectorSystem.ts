@@ -13,7 +13,7 @@ export class ActDirectorSystem implements System {
   update(entities: Entity[], engine: Engine, delta: number): void {
     if (engine.state !== "PLAYING" && engine.state !== "CINEMATIC") return;
 
-    // AKT- ODER LEVELPROGRESSION DETEKTIEREN
+    // LEVEL- PROGRESSION ODER NEUINITIALISIERUNG VERARBEITEN
     if (this.activeAct !== engine.currentAct || this.activeLevel !== engine.currentLevel) {
       if (this.activeAct === engine.currentAct && engine.currentAct !== 4) {
         this.buildProgressiveWaveLayout(engine);
@@ -27,20 +27,20 @@ export class ActDirectorSystem implements System {
       return;
     }
 
-    // AKT IV: SURVIVAL MULTIDIMENSIONALER WARP (LVL 10)
+    // AKT IV: SURVIVAL MULTIDIMENSIONALER STRUDEL RUNNER (LVL 10)
     if (engine.currentAct === 4 && engine.state === "PLAYING") {
       this.warpSurvivalTimer -= delta;
       if (Math.random() < 0.12) this.spawnHordeFormation(engine, 1, "cube");
       if (Math.random() < 0.06) this.spawnHordeFormation(engine, 1, "echo");
 
       if (this.warpSurvivalTimer <= 0) {
-        engine.currentAct = 5; // Weiterleitung zum finalen transzendenten Akt!
+        engine.currentAct = 5;
         engine.currentLevel = 1;
       }
       return;
     }
 
-    // ÜBERPRÜFUNG DER ZERSTÖRTEN PHALANX
+    // WELLEN-ZUSTANDSKONTROLLE
     if (engine.state === "PLAYING" && engine.currentAct !== 4) {
       const currentInvaders = entities.filter(e => 
         engine.em.hasComponent(e, "Collider") && 
@@ -49,8 +49,6 @@ export class ActDirectorSystem implements System {
 
       if (currentInvaders.length === 0) {
         engine.currentLevel += 1;
-        
-        // Jeder reguläre Angriffsakt hat exakt 3 Unter-Levels
         if (engine.currentLevel > 3 && engine.currentAct !== 5) {
           engine.currentAct += 1;
           engine.currentLevel = 1;
@@ -77,13 +75,13 @@ export class ActDirectorSystem implements System {
           this.spawnMatrixFormation(engine, 2, "monolith");
           this.spawnHordeFormation(engine, 1, "satellite");
         } else if (engine.currentLevel === 3) {
-          // INTERVALL: Einschleusen der feindlichen Alien-Monster im Mondkrater!
+          // Injektion der hochentwickelten organischen Alien-Einheiten
           this.spawnHordeFormation(engine, 2, "alien");
         }
         break;
       case 3:
         if (engine.currentLevel === 2) {
-          this.spawnHordeFormation(engine, 1, "xfighter"); // Injektion der Raumfahrt-Sternenjäger
+          this.spawnHordeFormation(engine, 1, "xfighter");
           this.spawnHordeFormation(engine, 1, "evapod");
         } else if (engine.currentLevel === 3) {
           this.spawnHordeFormation(engine, 2, "xfighter");
@@ -109,7 +107,7 @@ export class ActDirectorSystem implements System {
       case 1:
         engine.triggerCinematic("AKT I: DIE WIEGE DER MENSCHHEIT", [
           "Morgendämmerung Ostafrikas. Intelligenz erwacht im Leerraum.",
-          "Säubere die prähistorischen Horden und wilden Raubtiere.",
+          "Säubere die prähistorischen Horden und wilden Raubtieren.",
           "SEKTOR-STRUKTUR: LEVEL 01 BIS 03"
         ]);
         this.spawnHordeFormation(engine, 1, "cube");
@@ -136,7 +134,7 @@ export class ActDirectorSystem implements System {
       case 4:
         engine.triggerCinematic("AKT IV: BEYOND THE INFINITE", [
           "Licht bricht. Zeit mutiert. Die unendliche Singularität öffnet sich.",
-          "REINER AUSWEICH-Runner // ÜBERLEBE DAS STERNENTOR IN LEVEL 10!"
+          "REINER AUSWEICH-RUNNER // ÜBERLEBE DAS STERNENTOR IN LEVEL 10!"
         ]);
         break;
 
@@ -164,8 +162,8 @@ export class ActDirectorSystem implements System {
     if (type === "predator") color = "#d97706";
     if (type === "satellite") color = "#cbd5e1";
     if (type === "evapod") color = "#eab308";
-    if (type === "xfighter") color = "#e11d48"; // Ikonisches Imperium-Rot
-    if (type === "alien") color = "#a855f7";    // Kosmisches Plasma-Lila
+    if (type === "xfighter") color = "#e11d48";
+    if (type === "alien") color = "#a855f7";
 
     for (let r = 0; r < rows; r++) {
       for (let i = 0; i < cols; i++) {
@@ -191,5 +189,16 @@ export class ActDirectorSystem implements System {
         engine.em.addComponent(e, new Collider(24, type === "monolith" ? 54 : 24, "INVADER"));
       }
     }
+  }
+
+  private spawnQuantumAnomaly(engine: Engine, type: "cube" | "echo") {
+    const anomaly = engine.em.createEntity();
+    const width = engine.ctx.canvas.width;
+    const color = type === "cube" ? `hsl(${Math.random() * 360}, 100%, 60%)` : "rgba(255,255,255,0.3)";
+    
+    engine.em.addComponent(anomaly, new Position(Math.random() * (width - 80) + 40, 80));
+    engine.em.addComponent(anomaly, new Velocity(Math.random() * 280 - 140, Math.random() * 350 + 250));
+    engine.em.addComponent(anomaly, new Renderable(color, type === "cube" ? 26 : 40, type));
+    engine.em.addComponent(anomaly, new Collider(type === "cube" ? 26 : 40, 26, "INVADER"));
   }
 }
