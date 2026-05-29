@@ -17,7 +17,7 @@ export class PlayerControlSystem implements System {
     window.addEventListener("keydown", (e) => this.keys[e.code] = true);
     window.addEventListener("keyup", (e) => this.keys[e.code] = false);
 
-    // Maus- & Touch-Tracking für plattformübergreifendes, flüssiges Game-Feel
+    // Maus- & Touch-Tracking für ein flüssiges, lerp-interpoliertes Game-Feel
     const updatePointer = (x: number) => {
       this.targetX = x;
     };
@@ -40,17 +40,17 @@ export class PlayerControlSystem implements System {
         
         if (gun.cooldownTimer > 0) gun.cooldownTimer -= delta;
 
-        // --- BEWEGUNGSLOGIK A: Maus / Touch (Lerp-Interpolation) ---
+        // --- INPUT INTERFACE A: Maus / Touch (Lerp-Interpolation) ---
         if (this.targetX !== null) {
           const dx = this.targetX - (pos.x + 21); // Zentriert auf Schiffsmitte (42px / 2)
-          pos.x += dx * 16 * delta; // Sanftes Herangleiten
+          pos.x += dx * 16 * delta; 
         } 
         
-        // --- BEWEGUNGSLOGIK B: Tastatur (Fallback / Desktop Pro) ---
+        // --- INPUT INTERFACE B: Tastatur (A/D oder Pfeiltasten) ---
         const speed = 550;
         if (this.keys["ArrowLeft"] || this.keys["KeyA"]) {
           pos.x -= speed * delta;
-          this.targetX = null; // Tastatur bricht Maus-Fokus
+          this.targetX = null; // Tastatur bricht den Maus-Fokus auf
         }
         if (this.keys["ArrowRight"] || this.keys["KeyD"]) {
           pos.x += speed * delta;
@@ -61,18 +61,18 @@ export class PlayerControlSystem implements System {
         if (pos.x < 15) pos.x = 15;
         if (pos.x > engine.ctx.canvas.width - 57) pos.x = engine.ctx.canvas.width - 57;
 
-        // --- SOTA WAFFENSYSTEM & MODIFIER LOGIK ---
+        // --- SCHUSSAUSLÖSUNG & MODIFIER LOGIK ---
         if (gun.cooldownTimer <= 0 && engine.state === "PLAYING") {
           
-          // Prüfen, ob das Tri-Beam Power-Up aktiv im ECS hinterlegt ist
+          // Prüfen, ob das Tri-Beam Upgrade im ECS-Speicher aktiv ist
           const hasTriBeam = engine.em.hasComponent(entity, "Modifier") && 
                              engine.em.getComponent<Modifier>(entity, "Modifier")!.type === "TRI_BEAM";
 
           if (hasTriBeam) {
-            // Drei Strahlen fächerförmig in unterschiedlichen Vektoren abfeuern
+            // Drei Laser fächerförmig abfeuern
             this.fireLaser(engine, pos.x + 21, pos.y - 10, gun.projectileSpeed, 0);     // Zentrum
-            this.fireLaser(engine, pos.x + 5, pos.y - 5, gun.projectileSpeed, -180);   // Links abgewinkelt
-            this.fireLaser(engine, pos.x + 37, pos.y - 5, gun.projectileSpeed, 180);    // Rechts abgewinkelt
+            this.fireLaser(engine, pos.x + 5, pos.y - 5, gun.projectileSpeed, -120);   // Links abgewinkelt
+            this.fireLaser(engine, pos.x + 37, pos.y - 5, gun.projectileSpeed, 120);    // Rechts abgewinkelt
           } else {
             // Standard-Einzelstrahl
             this.fireLaser(engine, pos.x + 21, pos.y - 10, gun.projectileSpeed, 0);
@@ -87,9 +87,12 @@ export class PlayerControlSystem implements System {
   private fireLaser(engine: Engine, x: number, y: number, speed: number, vx: number): void {
     const laser = engine.em.createEntity();
     engine.em.addComponent(laser, new Position(x, y));
-    engine.em.addComponent(laser, new Velocity(vx, -speed)); // Streuung über vx-Vektor
-    engine.em.addComponent(laser, new Renderable(vx !== 0 ? "#ff00ff" : "#00ffcc", 4, "cube"));
-    engine.em.addComponent(laser, new Collider(4, 15, "PLAYER_LASER"));
+    engine.em.addComponent(laser, new Velocity(vx, -speed)); // Negativer Y-Vektor schießt nach oben
+    
+    // KORREKTUR: Typ auf \"laser\" geändert (Strich statt Kästchen) und Farbe auf Cyber-Neon-Blau umgestellt
+    engine.em.addComponent(laser, new Renderable("#00f0ff", 16, "laser"));
+    engine.em.addComponent(laser, new Collider(4, 16, "PLAYER_LASER"));
+    
     sfx.playLaserSound(true);
   }
 }
