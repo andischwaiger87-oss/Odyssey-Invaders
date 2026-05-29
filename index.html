@@ -27,10 +27,6 @@
       0% { box-shadow: inset 0 0 100px rgba(255, 0, 0, 0.85); }
       100% { box-shadow: inset 0 0 0px rgba(255, 0, 0, 0); }
     }
-    /* Custom Scrollbar für Settings */
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
-    ::-webkit-scrollbar-thumb { background: #ff3333; }
   </style>
 </head>
 <body class="bg-[#010103] text-white font-mono overflow-hidden h-screen w-screen relative crt-overlay select-none">
@@ -65,8 +61,51 @@
     <div class="absolute bottom-[6vh] left-0 h-0.5 bg-[#ff3333] transition-all duration-100 ease-linear" id="story-progress"></div>
   </div>
 
-  <div id="screen-overlay" class="absolute inset-0 z-40 flex flex-col justify-center items-center bg-[#020205] px-4 text-center overflow-y-auto py-8">
-    <div class="mb-4 relative flex items-center justify-center">
+  <div id="settings-modal" class="hidden absolute inset-0 z-50 flex flex-col justify-center items-center bg-black/95 px-4 text-center backdrop-blur-md transition-all duration-300">
+    <div class="w-full max-w-md bg-[#09090b] border border-white/10 p-6 rounded text-left space-y-4 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
+      <div class="text-[#ff3333] font-bold tracking-widest uppercase border-b border-white/5 pb-2 text-xs flex justify-between items-center">
+        <span>SIMULATIONSPARAMETER</span>
+        <span class="text-[9px] text-gray-500 font-normal">SYS_CONFIG_A1</span>
+      </div>
+      
+      <div class="flex flex-col space-y-1">
+        <label for="cfg-difficulty" class="tracking-wider text-[11px] text-gray-400 uppercase">Schwierigkeitsgrad:</label>
+        <select id="cfg-difficulty" class="bg-black border border-white/15 text-white px-3 py-2 rounded font-mono text-xs outline-none focus:border-[#ff3333] cursor-pointer">
+          <option value="EASY">EINFACH // REPARATUR-SUPPORT (5 LEBEN)</option>
+          <option value="NOMINAL" selected>CINE-NOMINAL // KUBRICK SPECTRUM (3 LEBEN)</option>
+          <option value="HARDCORE">HARDCORE // HAL-SABOTAGE (2 LEBEN)</option>
+        </select>
+      </div>
+
+      <div class="flex flex-col space-y-1">
+        <label for="cfg-controls" class="tracking-wider text-[11px] text-gray-400 uppercase">Steuerungsinterface:</label>
+        <select id="cfg-controls" class="bg-black border border-white/15 text-white px-3 py-2 rounded font-mono text-xs outline-none focus:border-[#ff3333] cursor-pointer">
+          <option value="MOUSE" selected>DIGITAL-GLIDE (MAUS / TOUCH-TRACKING)</option>
+          <option value="KEYBOARD">VEKTOR-TASTEN (A-D / PFEILTASTEN)</option>
+        </select>
+      </div>
+
+      <div class="flex justify-between items-center bg-black/40 p-2.5 border border-white/5 rounded">
+        <label for="cfg-crt" class="tracking-wider text-[11px] text-gray-400 uppercase cursor-pointer">CRT Scanline Terminal Filter:</label>
+        <input type="checkbox" id="cfg-crt" checked class="accent-[#ff3333] w-4 h-4 cursor-pointer">
+      </div>
+
+      <div class="space-y-1">
+        <div class="flex justify-between text-[11px]">
+          <label for="cfg-volume" class="tracking-wider text-gray-400 uppercase">Oszillatoren-Lautstärke:</label>
+          <span id="cfg-volume-val" class="text-[#ff3333] font-bold">60%</span>
+        </div>
+        <input type="range" id="cfg-volume" min="0" max="100" value="60" class="w-full accent-[#ff3333] bg-[#222] h-1 rounded cursor-pointer">
+      </div>
+
+      <button id="close-settings-btn" class="w-full mt-2 bg-[#ff3333] text-black font-bold text-xs uppercase tracking-widest py-3 transition-all duration-200 active:scale-95 hover:bg-[#ff5555]">
+        Parameter Bestätigen
+      </button>
+    </div>
+  </div>
+
+  <div id="screen-overlay" class="absolute inset-0 z-40 flex flex-col justify-center items-center bg-[#010103] px-4 text-center">
+    <div class="mb-6 relative flex items-center justify-center">
       <div class="w-16 h-16 rounded-full bg-black border-4 border-gray-800 flex items-center justify-center shadow-[0_0_40px_rgba(255,51,51,0.25)]">
         <div class="w-7 h-7 rounded-full bg-[#ff3333] shadow-[0_0_20px_#ff0000] flex items-center justify-center animate-pulse">
           <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
@@ -75,45 +114,17 @@
     </div>
     
     <h1 id="overlay-title" class="text-2xl md:text-4xl font-black tracking-[0.35em] text-white mb-1 uppercase">2001: A Space Odyssey</h1>
-    <p id="overlay-desc" class="text-xs text-gray-500 tracking-wider max-w-md mb-6 uppercase font-sans">SOTA Entity-Component-System Campaign Reinterpretation.</p>
+    <p id="overlay-desc" class="text-xs text-gray-500 tracking-wider max-w-md mb-10 uppercase font-sans">SOTA Entity-Component-System Campaign Reinterpretation.</p>
     
-    <div class="w-full max-w-md bg-black/60 border border-white/10 p-4 rounded text-left space-y-3 mb-6 text-xs text-gray-400">
-      <div class="text-[#ff3333] font-bold tracking-widest uppercase border-b border-white/5 pb-1 text-[10px]">Simulation Parameter konfigurieren</div>
+    <div class="flex flex-col gap-4 items-center w-full max-w-xs">
+      <button id="start-btn" class="w-full bg-transparent border border-[#ff3333] text-[#ff3333] hover:bg-[#ff3333] hover:text-black font-bold text-xs uppercase tracking-[0.3em] py-4 transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(255,51,51,0.15)]">
+        Evolution Starten
+      </button>
       
-      <div class="flex justify-between items-center">
-        <label for="cfg-difficulty" class="tracking-wider">SCHWIERIGKEITSGRAD:</label>
-        <select id="cfg-difficulty" class="bg-[#111] border border-white/20 text-white px-2 py-1 rounded font-mono text-xs outline-none focus:border-[#ff3333]">
-          <option value="EASY">EINFACH // REPARATUR-SUPPORT</option>
-          <option value="NOMINAL" selected>CINE-NOMINAL // KUBRICK FRAME</option>
-          <option value="HARDCORE">HARDCORE // HAL-SABOTAGE</option>
-        </select>
-      </div>
-
-      <div class="flex justify-between items-center">
-        <label for="cfg-controls" class="tracking-wider">STEUERUNGSINTERFACES:</label>
-        <select id="cfg-controls" class="bg-[#111] border border-white/20 text-white px-2 py-1 rounded font-mono text-xs outline-none focus:border-[#ff3333]">
-          <option value="MOUSE" selected>DIGITAL-GLIDE (MAUS/TOUCH)</option>
-          <option value="KEYBOARD">PREZISE VECTOR (A / D TASTEN)</option>
-        </select>
-      </div>
-
-      <div class="flex justify-between items-center">
-        <label for="cfg-crt" class="tracking-wider">CRT SCANLINE TERMINAL FILTER:</label>
-        <input type="checkbox" id="cfg-crt" checked class="accent-[#ff3333] w-4 h-4 cursor-pointer">
-      </div>
-
-      <div class="space-y-1">
-        <div class="flex justify-between">
-          <label for="cfg-volume" class="tracking-wider">OSZILLATOREN-LAUTSTÄRKE:</label>
-          <span id="cfg-volume-val" class="text-white">60%</span>
-        </div>
-        <input type="range" id="cfg-volume" min="0" max="100" value="60" class="w-full accent-[#ff3333] bg-[#222] h-1 rounded cursor-pointer">
-      </div>
+      <button id="open-settings-btn" class="text-[10px] text-gray-500 hover:text-white tracking-[0.25em] uppercase border border-white/5 hover:border-white/20 px-4 py-2 transition-all duration-300 rounded">
+        System-Parameter [⚙]
+      </button>
     </div>
-
-    <button id="start-btn" class="pointer-events-auto bg-transparent border border-[#ff3333] text-[#ff3333] hover:bg-[#ff3333] hover:text-black font-bold text-xs uppercase tracking-[0.3em] px-10 py-4 transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(255,51,51,0.15)]">
-      Evolution Starten
-    </button>
   </div>
 
   <canvas id="game-canvas" class="absolute inset-0 z-0 block w-full h-full"></canvas>
