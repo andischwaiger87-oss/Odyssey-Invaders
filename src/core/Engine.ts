@@ -33,7 +33,7 @@ export class Engine {
   private fps = 0;
   private frameCount = 0;
   private fpsTimer = 0;
-  public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // PURGED PREVIOUS BOSS REGISTER";
+  public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // LOCKING ALL INSTANCE SCOPES";
 
   // Countdown- & Outro-Timer
   public warpTimerDisplay = 15.0;
@@ -66,12 +66,12 @@ export class Engine {
     this.setupDebugToggle();
   }
 
-  private resizeCanvas(canvas: HTMLCanvasElement) {
+  private resizeCanvas = (canvas: HTMLCanvasElement): void => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   }
 
-  private setupDebugToggle() {
+  private setupDebugToggle = (): void => {
     window.addEventListener("keydown", (e) => {
       if (e.code === "KeyI") {
         this.debugActive = !this.debugActive;
@@ -81,12 +81,12 @@ export class Engine {
     });
   }
 
-  public logDebug(message: string) {
+  public logDebug = (message: string): void => {
     this.lastDebugLog = `[${new Date().toLocaleTimeString()}] ${message}`;
     console.log(`HAL_9000_LOG: ${message}`);
   }
 
-  private bindDOMEvents() {
+  private bindDOMEvents = (): void => {
     const volInput = document.getElementById("cfg-volume") as HTMLInputElement;
     const volVal = document.getElementById("cfg-volume-val");
     if (volInput && volVal) {
@@ -202,25 +202,21 @@ export class Engine {
         }
         
         this.currentAct = this.checkpointAct;
-        this.currentLevel = 1; // Zwingt den Director verlässlich zurück in Sektor 1 des aktuellen Akts
-        
-        // ZENTRALE GEWÄHRLEISTUNG: Behält den exakten, initial gewählten Schwierigkeitsgrad stabil bei
-        const maxLives = this.difficultyMode === "EASY" ? 5 : this.difficultyMode === "HARDCORE" ? 2 : 3;
-        this.lives = maxLives;
+        this.currentLevel = 1;
+        this.lives = this.difficultyMode === "EASY" ? 5 : this.difficultyMode === "HARDCORE" ? 2 : 3;
         this.state = "PLAYING";
         
         this.logDebug(`REBOOT SYSTEM // ACT ${this.checkpointAct} SECTOR 1 // DIFFICULTY PRESERVED: ${this.difficultyMode}`);
         
-        // SOTA FIX: Löscht ALLES aus dem ECS-Verzeichnis, was nicht eindeutig dem Spieler gehört (Säubert den alten Boss-Eintrag)
         this.em.getAllEntities().forEach(e => {
           const isPlayer = this.em.hasComponent(e, "Collider") && this.em.getComponent<Collider>(e, "Collider")!.faction === "PLAYER";
           if (!isPlayer) {
-            this.em.destroyEntity(e); // Vaporisiert HAL 9000 restlos aus dem Cache
+            this.em.destroyEntity(e);
           } else {
             const comp = this.em.getComponent<Health>(e, "Health")!;
-            comp.max = maxLives;
-            comp.current = maxLives;
-            comp.invulnerableTimer = 2.0; // Spawnschutz reaktivieren
+            comp.max = this.lives;
+            comp.current = this.lives;
+            comp.invulnerableTimer = 2.0;
           }
         });
       } else {
@@ -248,12 +244,12 @@ export class Engine {
     }
   }
 
-  public triggerScreenShake(duration: number, intensity: number) {
+  public triggerScreenShake = (duration: number, intensity: number): void => {
     this.shakeDuration = duration;
     this.shakeIntensity = intensity;
   }
 
-  public triggerCinematic(title: string, textLines: string[]) {
+  public triggerCinematic = (title: string, textLines: string[]): void => {
     this.state = "CINEMATIC";
     this.cinematicTimer = this.maxCinematicDuration;
     
@@ -266,11 +262,11 @@ export class Engine {
     card.classList.remove("pointer-events-none", "opacity-0");
   }
 
-  public addSystem(system: System): void {
+  public addSystem = (system: System): void => {
     this.systems.push(system);
   }
 
-  public start(): void {
+  public start = (): void => {
     this.lastTime = performance.now();
     requestAnimationFrame(this.loop);
   }
@@ -454,6 +450,31 @@ export class Engine {
       this.ctx.beginPath();
       this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
       this.ctx.stroke();
+    }
+  }
+
+  // SOTA CORE LOCK: Auch handleEndState schützt sich jetzt rigide als lexikalische Arrow Property!
+  private handleEndState = (won: boolean): void => {
+    const hud = document.getElementById("hud");
+    const overlay = document.getElementById("screen-overlay");
+    const title = document.getElementById("overlay-title");
+    const desc = document.getElementById("overlay-desc");
+    const btn = document.getElementById("start-btn");
+
+    if (hud) hud.classList.add("opacity-0");
+    if (overlay) overlay.style.display = "flex";
+    if (btn) btn.textContent = won ? "TRANZENDIEREN" : `REBOOT ZU AKT ${this.checkpointAct}`;
+    
+    if (title && desc) {
+      if (!won) {
+        title.textContent = "SYSTEM ERROR // DAVE";
+        title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#ff3333]";
+        desc.textContent = `Vollständiger Hüllenbruch. HAL 9000: "Diese Mission ist zu wichtig für mich, Dave." Wiederaufnahme ab Akt ${this.checkpointAct}.`;
+      } else {
+        title.textContent = "THE STAR CHILD";
+        title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#00ffcc] drop-shadow-[0_0_15px_rgba(0,255,204,0.6)] animate-pulse";
+        desc.textContent = "Die Metamorphose ist abgeschlossen. Du hast das Ende der menschlichen Evolution erreicht.";
+      }
     }
   }
 }
