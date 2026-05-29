@@ -53,30 +53,28 @@ export class CollisionSystem implements System {
       const pos = engine.em.getComponent<Position>(invaderEntity, "Position")!;
       const render = engine.em.getComponent<Renderable>(invaderEntity, "Renderable")!;
       
-      // SOTA BOSS CORES PRÜFUNG: Reduziert Lebenspunkte statt Instat-Löschung
       if (engine.em.hasComponent(invaderEntity, "Health")) {
         const bossHealth = engine.em.getComponent<Health>(invaderEntity, "Health")!;
         bossHealth.current -= 1;
-        engine.triggerScreenShake(0.3, 14);
-        ParticleSystem.spawnExplosion(engine, pos.x + 60, pos.y + 30, "#ff3333", 15);
+        engine.triggerScreenShake(0.35, 15);
+        ParticleSystem.spawnExplosion(engine, pos.x + 100, pos.y + 40, "#ff3333", 10);
         sfx.playExplosion(true);
         engine.em.destroyEntity(laserEntity);
         
-        engine.logDebug(`BOSS IMPACT // HAL SPEICHER-INTEGRITÄT: ${bossHealth.current} / ${bossHealth.max}`);
-        
         if (bossHealth.current <= 0) {
           engine.em.destroyEntity(invaderEntity);
-          engine.score += 20000;
-          engine.state = "GAMEWON"; // Siegbedingung im Loop freischalten
+          engine.score += 25000;
+          
+          // CRITICAL FIXED: Schaltet in das Canvas-OUTRO statt abrupt den DOM einzufrieren!
+          engine.state = "OUTRO";
+          engine.outroTimer = 0; 
         }
         return;
       }
 
-      // Normaler Gegner-Abschuss
       engine.triggerScreenShake(0.15, 12);
       ParticleSystem.spawnExplosion(engine, pos.x + 12, pos.y + 15, render.color, 20);
       sfx.playExplosion(true);
-      engine.logDebug(`COLLISION: VAPORIZED ENEMY UNIT ${render.type.toUpperCase()}`);
 
       if (Math.random() < 0.06) this.dropBalancedPowerUp(engine, pos.x, pos.y);
       engine.em.destroyEntity(e1);
@@ -122,7 +120,6 @@ export class CollisionSystem implements System {
       health.current -= 1;
       engine.lives = health.current;
       health.invulnerableTimer = 1.4;
-      engine.logDebug(`HULL DAMAGE // SYSTEM CORES RUNNING: ${health.current}`);
       return;
     }
 

@@ -1,8 +1,9 @@
 import { EntityManager, System } from "./ECS";
 import { sfx } from "./AudioEngine";
 import { Health } from "../components/Health";
+import { Renderable } from "../components/Renderable";
 
-export type GameState = "START" | "PLAYING" | "CINEMATIC" | "GAMEOVER" | "GAMEWON";
+export type GameState = "START" | "PLAYING" | "CINEMATIC" | "GAMEOVER" | "OUTRO" | "GAMEWON";
 
 export class Engine {
   public em: EntityManager;
@@ -10,38 +11,49 @@ export class Engine {
   private systems: System[] = [];
   private lastTime = 0;
 
-  // Globale Konfigurationen (4 Sektoren pro Akt)
+  // Globale Konfigurationen
   public score = 0;
   public lives = 3;
   public currentAct = 0;
   public currentLevel = 1;
   public state: GameState = "START";
 
-  // Checkpoint-Archivierung
+  // Checkpoint-Meilensteine
   public checkpointAct = 1;
   public checkpointLevel = 1;
 
-  // Ausgelesene DOM-Einstellungen
   public difficultyMode = "NOMINAL";
   public controlInterface = "MOUSE";
 
-  // SOTA Live-Telemetrie & Diagnose
+  // SOTA Live-Telemetrie Console
   public debugActive = false;
   private fps = 0;
   private frameCount = 0;
   private fpsTimer = 0;
   public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // ENTRANT ENVELOPE STABLE";
 
-  // Countdown Spiegel-Timer für Akt IV
+  // Countdown- & Outro-Timer
   public warpTimerDisplay = 15.0;
+  public outroTimer = 0;
 
   private shakeDuration = 0;
   private shakeIntensity = 0;
   private cinematicTimer = 0;
   private maxCinematicDuration = 5.0;
-
-  // State-Lock-Sperre: Verhindert, dass handleEndState in jedem Frame feuert und den DOM einfriert
   private endStateTriggered = false;
+
+  // Professionelle Abspann-Zeilen
+  private outroLines = [
+    "HAL 9000 // LOGIKKERNE ERFOLGREICH TRENNT",
+    "SPEICHERPOOL-SABOTAGE NEUTRALISIERT...",
+    "DISCOVERY ONE TRITT IN DEN ORBIT VOM JUPITER EIN.",
+    "DIE GRENZEN DER EUKLIDISCHEN MATRIX ZERFALLEN.",
+    "MATERIE... ZEIT... MENSCHLICHER VERSTAND...",
+    "ALLES FLIESST INEINANDER.",
+    "DIE METAMORPHOSE BEGINNT.",
+    "DU BIST DAS STERNENKIND.",
+    "ODYSSEE 2026 // SOTA ECS ENGINE V2"
+  ];
 
   constructor(canvas: HTMLCanvasElement) {
     this.em = new EntityManager();
@@ -109,7 +121,6 @@ export class Engine {
         if (hint) hint.textContent = this.controlInterface === "MOUSE" ? "STEUERUNG: MAUS / TOUCH INTERFACE" : "STEUERUNG: VAKTOR-TASTEN (A / D)";
       }
 
-      // SOTA KRYPTO-WARP-INJEKTION VERARBEITEN
       const warpContainer = document.getElementById("warp-level-container");
       const warpSelect = document.getElementById("cfg-warp-select") as HTMLSelectElement;
       if (warpContainer && !warpContainer.classList.contains("hidden") && warpSelect) {
@@ -133,8 +144,6 @@ export class Engine {
         }
 
         this.logDebug(`WARP PROTOCOL EXECUTED // DESTINATION INTERCEPTED: ACT ${act} LEVEL ${lvl}`);
-      } else {
-        this.logDebug(`PARAMETERS UPDATED // MODE: ${this.difficultyMode} // INPUT: ${this.controlInterface}`);
       }
     });
 
@@ -161,7 +170,6 @@ export class Engine {
         if (container) container.classList.remove("hidden");
         pwInput.disabled = true;
         if (unlockWarpBtn instanceof HTMLButtonElement) unlockWarpBtn.disabled = true;
-        this.logDebug("SECURITY TAMPER: LEVEL SELECTOR OVERRIDE UNLOCKED BY OPERATOR");
       } else {
         if (statusText) {
           statusText.textContent = "ZUGRIFF VERWEIGERT // SEC_FAIL: MALICIOUS CODE";
@@ -169,7 +177,6 @@ export class Engine {
         }
         pwInput.value = "";
         this.triggerScreenShake(0.3, 15);
-        this.logDebug("WARNING: INVALID OVERRIDE CODE SUBMITTED TO LOGIC CORE");
       }
     });
 
@@ -196,8 +203,6 @@ export class Engine {
         this.lives = this.difficultyMode === "EASY" ? 5 : this.difficultyMode === "HARDCORE" ? 2 : 3;
         this.state = "PLAYING";
         
-        this.logDebug(`REBOOT SYSTEM // CONTEXT RESTORED FOR ACT ${this.checkpointAct} [DIFFICULTY: ${this.difficultyMode}]`);
-        
         this.em.getAllEntities().forEach(e => {
           if (!this.em.hasComponent(e, "Health")) {
             this.em.destroyEntity(e);
@@ -216,7 +221,6 @@ export class Engine {
         this.currentAct = 1;
         this.currentLevel = 1;
         this.state = "PLAYING";
-        this.logDebug(`NEW CHRONICLE RUNNER BOOTED // SETTING HEALTH COMPONENT AT MAX: ${this.lives}`);
       }
     });
   }
@@ -277,13 +281,19 @@ export class Engine {
 
     const entities = this.em.getAllEntities();
 
-    if ((this.state === "PLAYING" || this.state === "CINEMATIC") && this.currentAct >= 4) {
+    // SOTA FIX: Hält den psychedelischen Hyperraum-Warp auch im dramatischen OUTRO aktiv!
+    if ((this.state === "PLAYING" || this.state === "CINEMATIC" || this.state === "OUTRO") && this.currentAct >= 4) {
       this.renderStargateWarp(currentTime / 1000);
     }
 
-    if (this.state === "PLAYING" || this.state === "CINEMATIC") {
-      for (const system of this.systems) {
-        system.update(entities, this, delta);
+    if (this.state === "PLAYING" || this.state === "CINEMATIC" || this.state === "OUTRO") {
+      if (this.state !== "OUTRO") {
+        for (const system of this.systems) {
+          system.update(entities, this, delta);
+        }
+      } else {
+        // ZÜNDUNG DES CINEMATISCHEN KANVAS-ABSPANNES
+        this.renderCinematicOutro(delta);
       }
 
       if (this.state === "CINEMATIC") {
@@ -322,7 +332,6 @@ export class Engine {
 
     this.syncDOMHUD();
 
-    // SOTA ARCHITEKTUR-REPARATUR: Variable 'entities.length' statt undefiniertem Typ übergeben
     if (this.debugActive) this.renderDebugUI(entities.length);
 
     if (this.lives <= 0 && this.state === "PLAYING" && !this.endStateTriggered) {
@@ -332,6 +341,49 @@ export class Engine {
     }
 
     requestAnimationFrame(this.loop);
+  }
+
+  // Zeichnet den fließenden, hochgradig professionellen Epilog direkt auf den Canvas
+  private renderCinematicOutro(delta: number) {
+    this.outroTimer += delta;
+    const cx = this.ctx.canvas.width / 2;
+    const startY = this.ctx.canvas.height / 2 - (this.outroLines.length * 20) / 2;
+
+    this.ctx.save();
+    this.ctx.textAlign = "center";
+    this.ctx.font = "bold 13px monospace";
+
+    for (let i = 0; i < this.outroLines.length; i++) {
+      // Jede Textzeile blendet versetzt über eine mathematische Sinus-Kurve ein
+      const lineDelay = i * 1.4;
+      let opacity = Math.min(1, Math.max(0, this.outroTimer - lineDelay));
+      
+      if (this.outroTimer > 14) {
+        opacity = Math.max(0, 1 - (this.outroTimer - 14)); // Sanfter Fade-Out am Ende
+      }
+
+      this.ctx.fillStyle = `rgba(0, 240, 255, ${opacity * 0.95})`;
+      this.ctx.shadowBlur = 10;
+      this.ctx.shadowColor = "rgba(0, 240, 255, 0.5)";
+      
+      // Das finale Transzendenz-Wort wird fett hervorgehoben
+      if (this.outroLines[i].includes("STERNENKIND")) {
+        this.ctx.font = "bold 20px monospace";
+        this.ctx.fillStyle = `rgba(0, 255, 204, ${opacity})`;
+        this.ctx.shadowColor = "#00ffcc";
+      } else {
+        this.ctx.font = "bold 13px monospace";
+      }
+
+      this.ctx.fillText(this.outroLines[i], cx, startY + i * 32);
+    }
+    this.ctx.restore();
+
+    // Nach 16 Sekunden schließt sich die Kapsel und öffnet das Menü-Overlay
+    if (this.outroTimer >= 16.0) {
+      this.state = "GAMEWON";
+      this.handleEndState(true);
+    }
   }
 
   private drawBossHealthBar(curr: number, max: number) {
@@ -352,8 +404,6 @@ export class Engine {
     const livesEl = document.getElementById("ui-lives");
 
     if (scoreEl) scoreEl.textContent = `SCORE // ${this.score.toString().padStart(6, '0')}`;
-    
-    // SOTA ARCHITEKTUR-REPARATUR: Dynamische Textanzeige statt statischem Hardcode-String
     if (actEl) {
       if (this.currentAct === 4) actEl.textContent = `AKT 04 - THE STARGATE`;
       else actEl.textContent = `AKT 0${this.currentAct} - SEKTOR ${this.currentLevel}`;

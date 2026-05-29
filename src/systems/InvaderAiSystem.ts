@@ -4,6 +4,7 @@ import { Position } from "../components/Position";
 import { Velocity } from "../components/Velocity";
 import { Collider } from "../components/Collider";
 import { Renderable } from "../components/Renderable";
+import { Health } from "../components/Health";
 
 export class InvaderAiSystem implements System {
   private direction = 1;
@@ -38,22 +39,33 @@ export class InvaderAiSystem implements System {
 
       switch (render.type) {
         case "hal9000_boss":
-          // BOSS-KI: Träges Gleiten an der Decke mit automatischem Richtungswechsel
           pos.x += this.direction * 140 * delta;
           if (pos.x > engine.ctx.canvas.width - 240) this.direction = -1;
           if (pos.x < 40) this.direction = 1;
 
-          // Multi-Phasen Feuerwelle des Großrechners
+          const h = engine.em.getComponent<Health>(invader, "Health")!;
+          const ratio = h.current / h.max;
+
           if (this.globalShootCooldown <= 0) {
-            const cx = pos.x + 60;
-            // 3er Fächerfeuer + Predictive-Strahl kombiniert!
-            this.fireEnemyCapsuleLaser(engine, cx, pos.y + 40, "#ff0055", 0);
-            this.fireEnemyCapsuleLaser(engine, cx, pos.y + 40, "#ff0055", -120);
-            this.fireEnemyCapsuleLaser(engine, cx, pos.y + 40, "#ff0055", 120);
+            const cx = pos.x + 100;
+            
+            // Hauptsalve
+            this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#ff0055", 0);
+            this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#ff0055", -120);
+            this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#ff0055", 120);
+            
             if (playerPos) {
-              this.fireEnemyCapsuleLaser(engine, cx, pos.y + 40, "#fef08a", (playerPos.x - cx) * 0.8);
+              this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#fef08a", (playerPos.x - cx) * 0.8);
             }
-            this.globalShootCooldown = 0.6 * fireRateMultiplier;
+
+            // SOTA BOSS RAGE INTERVALL: Unter 50% Integrität bricht ein brutales 5-Wege-Kreuzfeuer aus!
+            if (ratio < 0.5) {
+              this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#a855f7", -240);
+              this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#a855f7", 240);
+            }
+
+            // Der Cooldown sinkt dynamisch, je mehr HAL beschädigt wird!
+            this.globalShootCooldown = (0.35 * ratio + 0.15) * fireRateMultiplier;
           }
           break;
 

@@ -19,30 +19,23 @@ export class ActDirectorSystem implements System {
       engine.warpTimerDisplay = this.warpSurvivalTimer;
     }
 
-    // --- SOTA REPARATUR: KRYPTO-WARP MEILENSTEIN INTERZEPTION ---
     if (this.activeAct !== engine.currentAct || this.activeLevel !== engine.currentLevel) {
-      
       if (engine.currentAct === 4) {
         this.clearSimulationSpace(engine);
         this.warpSurvivalTimer = 15.0;
-        engine.logDebug(`STARGATE CORRIDOR ENGAGED // TIME TUNNEL SECTOR: 0${engine.currentLevel}`);
       } else if (engine.currentLevel === 1) {
-        // Regulärer Kapitelübergang mit kinoreifer Titelkarte
         this.activeAct = engine.currentAct;
         engine.checkpointAct = engine.currentAct;
         engine.checkpointLevel = 1;
         this.executeActTransition(engine);
       } else {
-        // DIREKTZÜNDUNG: Erzeugt das spezifische Unterlevel direkt ohne Level-1-Zwangsschleife
         this.buildProgressiveWaveLayout(engine);
       }
-      
       this.activeAct = engine.currentAct;
       this.activeLevel = engine.currentLevel;
       return;
     }
 
-    // AKT IV: SURVIVAL RUNNER TIMER TRACKING
     if (engine.currentAct === 4) {
       this.warpSurvivalTimer -= delta;
       const density = engine.currentLevel === 1 ? 0.12 : engine.currentLevel === 2 ? 0.16 : 0.22;
@@ -56,27 +49,21 @@ export class ActDirectorSystem implements System {
         if (engine.currentLevel > 3) {
           engine.currentAct = 5;
           engine.currentLevel = 1;
-          engine.logDebug("STARGATE SURVIVED // PARSING HIGHER ENTITY DIMENSIONS");
         } else {
           this.clearSimulationSpace(engine);
-          engine.logDebug(`STARGATE ACCELERATION // LOADING TRANS-SECTOR: 0${engine.currentLevel}`);
         }
       }
       return;
     }
 
-    // WELLENPRÜFUNG DER STRATEGISCHEN INVASOREN
     const currentInvaders = entities.filter(e => 
       engine.em.hasComponent(e, "Collider") && 
       engine.em.getComponent<Collider>(e, "Collider")!.faction === "INVADER"
     );
 
     if (currentInvaders.length === 0) {
-      if (engine.currentAct === 5 && engine.currentLevel === 4) {
-        engine.state = "GAMEWON";
-        engine.logDebug("EVOLUTION MATRIX COMPLETE // TERMINATED MAIN INFRASTRUCTURE");
-        return;
-      }
+      // HINWEIS: Akt V Level 4 bricht nicht mehr automatisch ab, sondern wartet auf HALs Vernichtung im CollisionSystem!
+      if (engine.currentAct === 5 && engine.currentLevel === 4) return;
 
       engine.currentLevel += 1;
 
@@ -101,13 +88,10 @@ export class ActDirectorSystem implements System {
 
   private buildProgressiveWaveLayout(engine: Engine) {
     this.clearSimulationSpace(engine);
-    engine.logDebug(`MATERIALIZING SPECTRUM: ACT 0${engine.currentAct} // LEVEL 0${engine.currentLevel}`);
 
     switch (engine.currentAct) {
       case 1:
-        if (engine.currentLevel === 1) {
-          this.spawnHordeFormation(engine, 1, "cube");
-        } else if (engine.currentLevel === 2) {
+        if (engine.currentLevel === 2) {
           this.spawnHordeFormation(engine, 1, "cube");
           this.spawnHordeFormation(engine, 1, "predator");
         } else if (engine.currentLevel === 3) {
@@ -118,9 +102,7 @@ export class ActDirectorSystem implements System {
         }
         break;
       case 2:
-        if (engine.currentLevel === 1) {
-          this.spawnMatrixFormation(engine, 3, "monolith");
-        } else if (engine.currentLevel === 2) {
+        if (engine.currentLevel === 2) {
           this.spawnMatrixFormation(engine, 2, "monolith");
           this.spawnHordeFormation(engine, 1, "satellite");
         } else if (engine.currentLevel === 3) {
@@ -131,9 +113,7 @@ export class ActDirectorSystem implements System {
         }
         break;
       case 3:
-        if (engine.currentLevel === 1) {
-          this.spawnMatrixFormation(engine, 1, "cube");
-        } else if (engine.currentLevel === 2) {
+        if (engine.currentLevel === 2) {
           this.spawnHordeFormation(engine, 1, "xfighter");
           this.spawnHordeFormation(engine, 1, "evapod");
         } else if (engine.currentLevel === 3) {
@@ -144,17 +124,14 @@ export class ActDirectorSystem implements System {
         }
         break;
       case 5:
-        if (engine.currentLevel === 1) {
-          this.spawnMatrixFormation(engine, 2, "monolith");
-          this.spawnHordeFormation(engine, 1, "alien");
-        } else if (engine.currentLevel === 2) {
+        if (engine.currentLevel === 2) {
           this.spawnHordeFormation(engine, 2, "xfighter");
           this.spawnHordeFormation(engine, 2, "alien");
         } else if (engine.currentLevel === 3) {
+          // SEKTOR 3 REAKTIVIERUNG: Matrix + Plasma-Aliens kombiniert
           this.spawnMatrixFormation(engine, 2, "monolith");
           this.spawnHordeFormation(engine, 2, "alien");
         } else if (engine.currentLevel === 4) {
-          // ZIELWARP ERREICHT: Spawnt direkt den HAL-9000 Endgegner
           this.spawnHal9000MegaBoss(engine);
         }
         break;
@@ -168,19 +145,17 @@ export class ActDirectorSystem implements System {
       case 1:
         engine.triggerCinematic("AKT I: DIE WIEGE DER MENSCHHEIT", [
           "Morgendämmerung Ostafrikas. Ein außerirdisches Monument erwacht.",
-          "Weiche den prähistorischen Skiffs und schnellen Raubtieren aus!",
-          "Die Evolution bricht sich ihre Bahn.",
-          "SEKTOR-WELLEN: 01 BIS 04 [I-TASTE FÜR TELEMETRIE]"
+          "Säubere die prähistorischen Skiffs und schnellen Raubtieren.",
+          "SEKTOR-WELLEN: 01 BIS 04 [I-TASTE FÜR DIAGNOSE]"
         ]);
         this.spawnHordeFormation(engine, 1, "cube");
         break;
 
       case 2:
         engine.triggerCinematic("AKT II: TMA-1 MONDKRATER", [
-          "Das Tycho-Monument sendet einen hochenergetischen Impuls aus.",
+          "Mondoberfläche Krater Tycho. Ein Funke schießt hochfrequent zum Jupiter.",
           "Durchbrich das Abwehrnetzwerk aus Monolithen und Satelliten!",
-          "Der Kosmos ruft nach uns.",
-          "KAMPAGNEN-BEREICH // SEKTOR 05 BIS 08"
+          "SEKTOR-WELLEN: 05 BIS 08"
         ]);
         this.spawnMatrixFormation(engine, 3, "monolith");
         break;
@@ -189,8 +164,7 @@ export class ActDirectorSystem implements System {
         engine.triggerCinematic("AKT III: DIE JUPITER-MISSION", [
           "An Bord der Discovery One. HAL 9000 übernimmt die totale Kontrolle.",
           "TRENNE HALs LOGIKKERNE UND WEICHE DEN ROTEN X-FIGHTERN AUS!",
-          "Es gibt keine Fehlfunktionen in der 9000er Serie, Dave.",
-          "KAMPAGNEN-BEREICH // SEKTOR 09 BIS 12"
+          "SEKTOR-WELLEN: 09 BIS 12"
         ]);
         this.spawnMatrixFormation(engine, 1, "cube");
         break;
@@ -206,9 +180,8 @@ export class ActDirectorSystem implements System {
       case 5:
         engine.triggerCinematic("AKT V: DIE METAMORPHOSE (DAS FINALE)", [
           "Am absoluten Nullpunkt der Existenz manifestiert sich die Urform.",
-          "Der Monolith entfesselt das unerbittliche Elite-Kreuzfeuer.",
-          "VERNICHTE DIE LETZTE MATRIX IN SEKTOR 4 FÜR DEN SIEG!",
-          "DAS REINE HIGH-END FINALE STARTET JETZT!"
+          "Zerschlage die Mutationen und rüste dich für den finalen Showdown!",
+          "VERNICHTE HAL 9000 IN SEKTOR 4 FÜR DIE ZUFLUCHT!"
         ]);
         this.spawnMatrixFormation(engine, 2, "monolith");
         this.spawnHordeFormation(engine, 1, "alien");
@@ -222,7 +195,8 @@ export class ActDirectorSystem implements System {
     engine.em.addComponent(boss, new Renderable("#18181b", 80, "hal9000_boss"));
     engine.em.addComponent(boss, new Collider(200, 80, "INVADER"));
     
-    const hp = engine.difficultyMode === "EASY" ? 20 : engine.difficultyMode === "HARDCORE" ? 45 : 30;
+    // TUNING: Lebensbalken verzehnfacht für echten Boss-Charakter!
+    const hp = engine.difficultyMode === "EASY" ? 150 : engine.difficultyMode === "HARDCORE" ? 450 : 250;
     engine.em.addComponent(boss, new Health(hp, hp));
   }
 
@@ -258,7 +232,7 @@ export class ActDirectorSystem implements System {
     const cols = Math.min(8, Math.floor(engine.ctx.canvas.width / 120));
     const color = type === "monolith" ? "#000000" : "#ff3333";
     for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
+      for (let col = 0; col * 115 < engine.ctx.canvas.width - 200; col++) {
         const e = engine.em.createEntity();
         engine.em.addComponent(e, new Position(140 + col * 115, 130 + row * 75));
         engine.em.addComponent(e, new Renderable(color, 24, type));
