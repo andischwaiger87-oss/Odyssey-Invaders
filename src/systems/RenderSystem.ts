@@ -21,6 +21,7 @@ export class RenderSystem implements System {
         switch (render.type) {
           case "ship":
             this.drawDiscoveryOne(ctx, pos.x, pos.y);
+            // SOTA SHIELD GLOW INDIKATOR
             const hasShield = engine.em.hasComponent(entity, "Modifier") && 
                               engine.em.getComponent<Modifier>(entity, "Modifier")!.type === "SHIELD";
             if (hasShield) {
@@ -64,12 +65,10 @@ export class RenderSystem implements System {
             break;
 
           case "laser":
-            // REPARATUR: Zeichnet Geschosse als klar erkennbare, glühende Neon-Kapseln
             ctx.fillRect(pos.x - 1, pos.y, 3, render.size);
             break;
 
           case "powerup_item":
-            // REPARATUR: Zeichnet Items als rotierende, leuchtende geometrische Diamanten
             this.drawPowerUpItem(ctx, pos.x, pos.y, render.size, render.color);
             break;
 
@@ -87,10 +86,42 @@ export class RenderSystem implements System {
     }
   }
 
+  private drawDiscoveryOne(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x + 20, y + 10, 12, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#ff3333";
+    ctx.beginPath();
+    ctx.arc(x + 20, y + 8, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(x + 20, y + 22);
+    ctx.lineTo(x + 20, y + 45);
+    ctx.stroke();
+
+    ctx.fillStyle = "#0d0d11";
+    ctx.fillRect(x + 5, y + 45, 30, 12);
+    ctx.strokeRect(x + 5, y + 45, 30, 12);
+
+    if (Math.random() > 0.3) {
+      ctx.fillStyle = "#00ffff";
+      ctx.shadowColor = "#00ffff";
+      ctx.shadowBlur = 20;
+      ctx.fillRect(x + 9, y + 57, 5, 7);
+      ctx.fillRect(x + 25, y + 57, 5, 7);
+    }
+  }
+
   private drawPredatorBeast(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     ctx.fillStyle = "#b45309";
     ctx.fillRect(x, y + 4, size, size - 8);
-    ctx.fillStyle = "#ff3333"; // Glühende Raubtieraugen
+    ctx.fillStyle = "#ff3333";
     ctx.fillRect(x + 3, y + 6, 3, 3);
     ctx.fillRect(x + size - 6, y + 6, 3, 3);
   }
@@ -115,7 +146,7 @@ export class RenderSystem implements System {
     ctx.beginPath();
     ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = "#22d3ee"; // Scheinwerfer
+    ctx.fillStyle = "#22d3ee";
     ctx.fillRect(x + size / 2 - 4, y + 4, 8, 4);
   }
 
