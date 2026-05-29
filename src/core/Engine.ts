@@ -11,14 +11,14 @@ export class Engine {
   private systems: System[] = [];
   private lastTime = 0;
 
-  // Globale Konfigurationen
+  // Globale Konfigurationen (4 Sektoren pro Akt)
   public score = 0;
   public lives = 3;
   public currentAct = 0;
-  public currentLevel = 1;
+  public currentLevel = 1; 
   public state: GameState = "START";
 
-  // Checkpoint-Meilensteine
+  // Checkpoint Meilensteine
   public checkpointAct = 1;
   public checkpointLevel = 1;
 
@@ -32,7 +32,6 @@ export class Engine {
   private fpsTimer = 0;
   public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // ENTRANT ENVELOPE STABLE";
 
-  // Countdown- & Outro-Timer
   public warpTimerDisplay = 15.0;
   public outroTimer = 0;
 
@@ -42,9 +41,8 @@ export class Engine {
   private maxCinematicDuration = 5.0;
   private endStateTriggered = false;
 
-  // Professionelle Abspann-Zeilen
   private outroLines = [
-    "HAL 9000 // LOGIKKERNE ERFOLGREICH TRENNT",
+    "HAL 9000 // LOGIKKERNE ERFOLGREICH GETRENNT",
     "SPEICHERPOOL-SABOTAGE NEUTRALISIERT...",
     "DISCOVERY ONE TRITT IN DEN ORBIT VOM JUPITER EIN.",
     "DIE GRENZEN DER EUKLIDISCHEN MATRIX ZERFALLEN.",
@@ -129,7 +127,7 @@ export class Engine {
         this.currentAct = act;
         this.currentLevel = lvl;
         this.checkpointAct = act;
-        this.checkpointLevel = lvl;
+        this.checkpointLevel = 1; // SOTA FIX: Checkpoint-Sektor bleibt intern immer auf 1 fixiert
 
         this.em.getAllEntities().forEach(e => {
           if (!this.em.hasComponent(e, "Health")) this.em.destroyEntity(e);
@@ -199,9 +197,11 @@ export class Engine {
         }
         
         this.currentAct = this.checkpointAct;
-        this.currentLevel = this.checkpointLevel;
+        this.currentLevel = 1; // SOTA REPARATUR: Zwingt die Welle beim Ableben immer zurück auf Sektor 1!
         this.lives = this.difficultyMode === "EASY" ? 5 : this.difficultyMode === "HARDCORE" ? 2 : 3;
         this.state = "PLAYING";
+        
+        this.logDebug(`REBOOT SYSTEM // CONTEXT RESTORED FOR ACT ${this.checkpointAct} SECTOR 1`);
         
         this.em.getAllEntities().forEach(e => {
           if (!this.em.hasComponent(e, "Health")) {
@@ -281,19 +281,15 @@ export class Engine {
 
     const entities = this.em.getAllEntities();
 
-    // SOTA FIX: Hält den psychedelischen Hyperraum-Warp auch im dramatischen OUTRO aktiv!
-    if ((this.state === "PLAYING" || this.state === "CINEMATIC" || this.state === "OUTRO") && this.currentAct >= 4) {
+    // SOTA KORREKTUR: Der Strudel zündet exakt erst ab Akt 5, Sektor 3 (Oder in der Abspann-Phase)
+    if ((this.state === "PLAYING" || this.state === "CINEMATIC" || this.state === "OUTRO") && 
+        (this.currentAct === 5 && (this.currentLevel >= 3 || this.state === "OUTRO"))) {
       this.renderStargateWarp(currentTime / 1000);
     }
 
     if (this.state === "PLAYING" || this.state === "CINEMATIC" || this.state === "OUTRO") {
-      if (this.state !== "OUTRO") {
-        for (const system of this.systems) {
-          system.update(entities, this, delta);
-        }
-      } else {
-        // ZÜNDUNG DES CINEMATISCHEN KANVAS-ABSPANNES
-        this.renderCinematicOutro(delta);
+      for (const system of this.systems) {
+        system.update(entities, this, delta);
       }
 
       if (this.state === "CINEMATIC") {
@@ -310,17 +306,6 @@ export class Engine {
     }
 
     this.ctx.restore();
-
-    if (this.currentAct === 4 && this.state === "PLAYING") {
-      this.ctx.save();
-      this.ctx.font = "bold 15px monospace";
-      this.ctx.fillStyle = "#ff3333";
-      this.ctx.shadowBlur = 12;
-      this.ctx.shadowColor = "#ff3333";
-      this.ctx.textAlign = "center";
-      this.ctx.fillText(`STARGATE STRUDEL // RESISTENZ-ZEIT SEKTOR: ${Math.max(0, this.warpTimerDisplay).toFixed(1)}s`, this.ctx.canvas.width / 2, 110);
-      this.ctx.restore();
-    }
 
     if (this.currentAct === 5 && this.currentLevel === 4 && this.state === "PLAYING") {
       const boss = entities.find(e => this.em.getComponent<Renderable>(e, "Renderable")?.type === "hal9000_boss");
@@ -343,7 +328,6 @@ export class Engine {
     requestAnimationFrame(this.loop);
   }
 
-  // Zeichnet den fließenden, hochgradig professionellen Epilog direkt auf den Canvas
   private renderCinematicOutro(delta: number) {
     this.outroTimer += delta;
     const cx = this.ctx.canvas.width / 2;
@@ -354,19 +338,17 @@ export class Engine {
     this.ctx.font = "bold 13px monospace";
 
     for (let i = 0; i < this.outroLines.length; i++) {
-      // Jede Textzeile blendet versetzt über eine mathematische Sinus-Kurve ein
       const lineDelay = i * 1.4;
       let opacity = Math.min(1, Math.max(0, this.outroTimer - lineDelay));
       
       if (this.outroTimer > 14) {
-        opacity = Math.max(0, 1 - (this.outroTimer - 14)); // Sanfter Fade-Out am Ende
+        opacity = Math.max(0, 1 - (this.outroTimer - 14));
       }
 
       this.ctx.fillStyle = `rgba(0, 240, 255, ${opacity * 0.95})`;
       this.ctx.shadowBlur = 10;
       this.ctx.shadowColor = "rgba(0, 240, 255, 0.5)";
       
-      // Das finale Transzendenz-Wort wird fett hervorgehoben
       if (this.outroLines[i].includes("STERNENKIND")) {
         this.ctx.font = "bold 20px monospace";
         this.ctx.fillStyle = `rgba(0, 255, 204, ${opacity})`;
@@ -379,7 +361,6 @@ export class Engine {
     }
     this.ctx.restore();
 
-    // Nach 16 Sekunden schließt sich die Kapsel und öffnet das Menü-Overlay
     if (this.outroTimer >= 16.0) {
       this.state = "GAMEWON";
       this.handleEndState(true);
@@ -405,8 +386,7 @@ export class Engine {
 
     if (scoreEl) scoreEl.textContent = `SCORE // ${this.score.toString().padStart(6, '0')}`;
     if (actEl) {
-      if (this.currentAct === 4) actEl.textContent = `AKT 04 - THE STARGATE`;
-      else actEl.textContent = `AKT 0${this.currentAct} - SEKTOR ${this.currentLevel}`;
+      actEl.textContent = `AKT 0${this.currentAct} - SEKTOR ${this.currentLevel}`;
     }
     
     if (livesEl) {
@@ -435,20 +415,6 @@ export class Engine {
       <div>LAST MEILENSTEIN:   <span class="text-white">ACT 0${this.checkpointAct} // LEVEL 0${this.checkpointLevel}</span></div>
       <div class="text-amber-400 border-t border-emerald-500/20 mt-1 pt-1">TRACE OUT: ${this.lastDebugLog}</div>
     `;
-  }
-
-  private renderStargateWarp(time: number) {
-    const cx = this.ctx.canvas.width / 2;
-    const cy = this.ctx.canvas.height / 2;
-    const maxRadius = Math.max(cx, cy);
-    for (let i = 0; i < 40; i++) {
-      const r = ((i * 22 + time * 140) % maxRadius);
-      this.ctx.strokeStyle = `hsla(${(i * 12 + time * 60) % 360}, 100%, 50%, ${1 - r / maxRadius})`;
-      this.ctx.lineWidth = 3;
-      this.ctx.beginPath();
-      this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      this.ctx.stroke();
-    }
   }
 
   private handleEndState(won: boolean) {

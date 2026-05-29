@@ -39,7 +39,7 @@ export class InvaderAiSystem implements System {
 
       switch (render.type) {
         case "hal9000_boss":
-          pos.x += this.direction * 140 * delta;
+          pos.x += this.direction * 150 * delta;
           if (pos.x > engine.ctx.canvas.width - 240) this.direction = -1;
           if (pos.x < 40) this.direction = 1;
 
@@ -58,14 +58,13 @@ export class InvaderAiSystem implements System {
               this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#fef08a", (playerPos.x - cx) * 0.8);
             }
 
-            // SOTA BOSS RAGE INTERVALL: Unter 50% Integrität bricht ein brutales 5-Wege-Kreuzfeuer aus!
+            // SOTA BOSS RAGE MODUS VERSTÄRKT: Unter 50% HP bricht ein chaotisches 5-Wege-Kreuzfeuer aus!
             if (ratio < 0.5) {
               this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#a855f7", -240);
               this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#a855f7", 240);
             }
 
-            // Der Cooldown sinkt dynamisch, je mehr HAL beschädigt wird!
-            this.globalShootCooldown = (0.35 * ratio + 0.15) * fireRateMultiplier;
+            this.globalShootCooldown = (0.28 * ratio + 0.12) * fireRateMultiplier;
           }
           break;
 
@@ -115,6 +114,10 @@ export class InvaderAiSystem implements System {
 
         case "satellite":
           pos.x += Math.sin(this.waveTimer * 1.5 + pos.y) * 140 * delta;
+          if (this.globalShootCooldown <= 0 && Math.random() < 0.03) {
+            this.fireEnemyCapsuleLaser(engine, pos.x + 12, pos.y + 20, "#cbd5e1", 0);
+            this.globalShootCooldown = 0.4 * fireRateMultiplier;
+          }
           break;
 
         case "evapod":
@@ -122,13 +125,6 @@ export class InvaderAiSystem implements System {
             pos.x += vel.vx * delta;
             pos.y += Math.sin(this.waveTimer * 4 + pos.x) * 20 * delta;
             if (pos.x < 20 || pos.x > engine.ctx.canvas.width - 50) vel.vx *= -1;
-          }
-          break;
-
-        case "echo":
-          if (vel) {
-            pos.x += vel.vx * delta;
-            pos.y += vel.vy * delta;
           }
           break;
       }
