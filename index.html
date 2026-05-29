@@ -98,6 +98,42 @@
         <input type="range" id="cfg-volume" min="0" max="100" value="60" class="w-full accent-[#ff3333] bg-[#222] h-1 rounded cursor-pointer">
       </div>
 
+      <div class="border-t border-white/10 pt-3 flex flex-col space-y-2">
+        <label class="tracking-wider text-[11px] text-gray-400 uppercase">LEVEL-WARP (VERSCHLÜSSELT):</label>
+        <div class="flex gap-2">
+          <input type="password" id="cfg-warp-pw" placeholder="SCHLÜSSEL-CODE INJEKTION" class="w-full bg-black border border-white/15 text-white px-3 py-2 rounded font-mono text-xs outline-none focus:border-[#ff3333]">
+          <button id="unlock-warp-btn" class="bg-transparent border border-gray-600 text-gray-400 hover:border-[#ff3333] hover:text-[#ff3333] px-3 rounded font-mono text-[10px] font-bold uppercase tracking-widest transition-colors duration-200">
+            DEKR_CODE
+          </button>
+        </div>
+        <div id="warp-status-text" class="text-[9px] text-gray-500 uppercase tracking-wider">Status: Gesperrt durch Krypto-Schild</div>
+        
+        <div id="warp-level-container" class="hidden flex flex-col space-y-1 pt-1">
+          <label for="cfg-warp-select" class="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">Zielkoordinaten wählen:</label>
+          <select id="cfg-warp-select" class="bg-black border border-emerald-500/30 text-emerald-400 px-3 py-2 rounded font-mono text-xs outline-none focus:border-emerald-400 cursor-pointer">
+            <option value="1_1">AKT 1 - SEKTOR 1 (START)</option>
+            <option value="1_2">AKT 1 - SEKTOR 2 (HORDE)</option>
+            <option value="1_3">AKT 1 - SEKTOR 3 (BESTIEN)</option>
+            <option value="1_4">AKT 1 - SEKTOR 4 (PHALANX)</option>
+            <option value="2_1">AKT 2 - SEKTOR 1 (MONOLITH MATRIX)</option>
+            <option value="2_2">AKT 2 - SEKTOR 2 (LUNAR-NETZ)</option>
+            <option value="2_3">AKT 2 - SEKTOR 3 (PLASMA-ALIENS)</option>
+            <option value="2_4">AKT 2 - SEKTOR 4 (ELITE-WELLEN)</option>
+            <option value="3_1">AKT 3 - SEKTOR 1 (HAL-9000 REVOLTE)</option>
+            <option value="3_2">AKT 3 - SEKTOR 2 (X-FIGHTER JÄGER)</option>
+            <option value="3_3">AKT 3 - SEKTOR 3 (LOGIK-SABOTAGE)</option>
+            <option value="3_4">AKT 3 - SEKTOR 4 (SYSTEM-CRASH)</option>
+            <option value="4_1">AKT 4 - SEKTOR 1 (STARGATE RUNNER 01)</option>
+            <option value="4_2">AKT 4 - SEKTOR 2 (STARGATE RUNNER 02)</option>
+            <option value="4_3">AKT 4 - SEKTOR 3 (STARGATE RUNNER 03)</option>
+            <option value="5_1">AKT 5 - SEKTOR 1 (KOSMISCHE ANOMALIE)</option>
+            <option value="5_2">AKT 5 - SEKTOR 2 (ELITE-KREUZFEUER)</option>
+            <option value="5_3">AKT 5 - SEKTOR 3 (WARP-SPIRALEN PHASING)</option>
+            <option value="5_4">AKT 5 - SEKTOR 4 (HAL-9000 MAINBOSSKAMPF)</option>
+          </select>
+        </div>
+      </div>
+
       <button id="close-settings-btn" class="w-full mt-2 bg-[#ff3333] text-black font-bold text-xs uppercase tracking-widest py-3 transition-all duration-200 active:scale-95 hover:bg-[#ff5555]">
         Parameter Bestätigen
       </button>

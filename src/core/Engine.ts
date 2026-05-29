@@ -110,7 +110,73 @@ export class Engine {
         const hint = document.getElementById("ui-controls-hint");
         if (hint) hint.textContent = this.controlInterface === "MOUSE" ? "STEUERUNG: MAUS / TOUCH INTERFACE" : "STEUERUNG: VAKTOR-TASTEN (A / D)";
       }
-      this.logDebug(`PARAMETERS UPDATED // MODE: ${this.difficultyMode} // INPUT: ${this.controlInterface}`);
+
+      // SOTA KRYPTO-WARP-INJEKTION VERARBEITEN (Sperrt Zugriff per verschlüsseltem Abgleich)
+      const warpContainer = document.getElementById("warp-level-container");
+      const warpSelect = document.getElementById("cfg-warp-select") as HTMLSelectElement;
+      if (warpContainer && !warpContainer.classList.contains("hidden") && warpSelect) {
+        const [act, lvl] = warpSelect.value.split("_").map(Number);
+        
+        this.currentAct = act;
+        this.currentLevel = lvl;
+        this.checkpointAct = act;
+        this.checkpointLevel = lvl;
+
+        // Spielervolumen behalten, alles andere terminieren
+        this.em.getAllEntities().forEach(e => {
+          if (!this.em.hasComponent(e, "Health")) this.em.destroyEntity(e);
+        });
+
+        // Setze den State explizit auf PLAYING, falls der Warp aus dem Hauptmenü heraus gestartet wird
+        if (this.state === "START" || this.state === "GAMEOVER") {
+          const overlay = document.getElementById("screen-overlay");
+          const hud = document.getElementById("hud");
+          if (overlay) overlay.style.display = "none";
+          if (hud) hud.classList.remove("opacity-0");
+          this.state = "PLAYING";
+        }
+
+        this.logDebug(`WARP PROTOCOL EXECUTED // DESTINATION INTERCEPTED: ACT ${act} LEVEL ${lvl}`);
+      } else {
+        this.logDebug(`PARAMETERS UPDATED // MODE: ${this.difficultyMode} // INPUT: ${this.controlInterface}`);
+      }
+    });
+
+    // ASYNCHRONER DEKODIERUNGS-PROZESSOR (Verhindert Console-Hacking über SHA-256 Validierung)
+    const unlockWarpBtn = document.getElementById("unlock-warp-btn");
+    unlockWarpBtn?.addEventListener("click", async () => {
+      const pwInput = document.getElementById("cfg-warp-pw") as HTMLInputElement;
+      if (!pwInput) return;
+
+      const encoder = new TextEncoder();
+      const data = encoder.encode(pwInput.value);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+
+      // SOTA SECURITY: SHA-256 Signatur-Hash von "9438" (Verhindert Strings-Scanning im Bundle)
+      const targetHash = "0364c0e99a363153542157dddb22ebbbc63d22c6633c6b001a7bf6c98e82f2e9";
+      const statusText = document.getElementById("warp-status-text");
+      const container = document.getElementById("warp-level-container");
+
+      if (hashHex === targetHash) {
+        if (statusText) {
+          statusText.textContent = "ZUGRIFF GEWÄHRT // LEVEL-WARP FREIGESCHALTET";
+          statusText.className = "text-emerald-400 font-bold mt-1 text-[10px]";
+        }
+        if (container) container.classList.remove("hidden");
+        pwInput.disabled = true;
+        if (unlockWarpBtn instanceof HTMLButtonElement) unlockWarpBtn.disabled = true;
+        this.logDebug("SECURITY TAMPER: LEVEL SELECTOR OVERRIDE UNLOCKED BY OPERATOR");
+      } else {
+        if (statusText) {
+          statusText.textContent = "ZUGRIFF VERWEIGERT // SEC_FAIL: MALICIOUS CODE";
+          statusText.className = "text-[#ff3333] font-bold mt-1 text-[10px] animate-pulse";
+        }
+        pwInput.value = "";
+        this.triggerScreenShake(0.3, 15);
+        this.logDebug("WARNING: INVALID OVERRIDE CODE SUBMITTED TO LOGIC CORE");
+      }
     });
 
     document.getElementById("start-btn")?.addEventListener("click", () => {
@@ -149,7 +215,7 @@ export class Engine {
           }
         });
       } else {
-        // Erststart über Voreinstellungen abgreifen, falls Modal nie geöffnet wurde
+        // Erststart über Voreinstellungen abgreifen
         const diffSelect = document.getElementById("cfg-difficulty") as HTMLSelectElement;
         if (diffSelect) this.difficultyMode = diffSelect.value;
         
@@ -263,17 +329,13 @@ export class Engine {
 
     this.syncDOMHUD();
 
-    if (this.debugActive) this.renderDebugUI(entities.length);
+    if (this.debugActive) this.renderDebugUI(entityCount);
 
     if (this.lives <= 0 && this.state === "PLAYING" && !this.endStateTriggered) {
       this.state = "GAMEOVER";
       this.endStateTriggered = true;
       this.logDebug("FATAL SYSTEM INTEGRITY DAMAGE // OPENING ENDREBOOT CARD");
       this.handleEndState(false);
-    }
-
-    if (this.state === "GAMEWON") {
-      this.handleEndState(true);
     }
 
     requestAnimationFrame(this.loop);
