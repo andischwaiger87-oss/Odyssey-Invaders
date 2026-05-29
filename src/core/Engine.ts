@@ -2,6 +2,8 @@ import { EntityManager, System } from "./ECS";
 import { sfx } from "./AudioEngine";
 import { Health } from "../components/Health";
 import { Renderable } from "../components/Renderable";
+import { Collider } from "../components/Collider";
+import { Position } from "../components/Position";
 
 export type GameState = "START" | "PLAYING" | "CINEMATIC" | "GAMEOVER" | "OUTRO" | "GAMEWON";
 
@@ -31,7 +33,7 @@ export class Engine {
   private fps = 0;
   private frameCount = 0;
   private fpsTimer = 0;
-  public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // RESOLVED SCOPE OVERLOAD";
+  public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // PURGED PREVIOUS BOSS REGISTER";
 
   // Countdown- & Outro-Timer
   public warpTimerDisplay = 15.0;
@@ -143,6 +145,7 @@ export class Engine {
           this.state = "PLAYING";
         }
 
+        this.enforcePlayerBaseline();
         this.logDebug(`WARP PROTOCOL EXECUTED // DESTINATION INTERCEPTED: ACT ${act} LEVEL ${lvl}`);
       }
     });
@@ -199,20 +202,25 @@ export class Engine {
         }
         
         this.currentAct = this.checkpointAct;
-        this.currentLevel = 1;
-        this.lives = this.difficultyMode === "EASY" ? 5 : this.difficultyMode === "HARDCORE" ? 2 : 3;
+        this.currentLevel = 1; // Zwingt den Director verlässlich zurück in Sektor 1 des aktuellen Akts
+        
+        // ZENTRALE GEWÄHRLEISTUNG: Behält den exakten, initial gewählten Schwierigkeitsgrad stabil bei
+        const maxLives = this.difficultyMode === "EASY" ? 5 : this.difficultyMode === "HARDCORE" ? 2 : 3;
+        this.lives = maxLives;
         this.state = "PLAYING";
         
-        this.logDebug(`REBOOT SYSTEM // CONTEXT RESTORED FOR ACT ${this.checkpointAct} SECTOR 1`);
+        this.logDebug(`REBOOT SYSTEM // ACT ${this.checkpointAct} SECTOR 1 // DIFFICULTY PRESERVED: ${this.difficultyMode}`);
         
+        // SOTA FIX: Löscht ALLES aus dem ECS-Verzeichnis, was nicht eindeutig dem Spieler gehört (Säubert den alten Boss-Eintrag)
         this.em.getAllEntities().forEach(e => {
-          if (!this.em.hasComponent(e, "Health")) {
-            this.em.destroyEntity(e);
+          const isPlayer = this.em.hasComponent(e, "Collider") && this.em.getComponent<Collider>(e, "Collider")!.faction === "PLAYER";
+          if (!isPlayer) {
+            this.em.destroyEntity(e); // Vaporisiert HAL 9000 restlos aus dem Cache
           } else {
             const comp = this.em.getComponent<Health>(e, "Health")!;
-            comp.max = this.lives;
-            comp.current = this.lives;
-            comp.invulnerableTimer = 2.0;
+            comp.max = maxLives;
+            comp.current = maxLives;
+            comp.invulnerableTimer = 2.0; // Spawnschutz reaktivieren
           }
         });
       } else {
@@ -224,7 +232,20 @@ export class Engine {
         this.currentLevel = 1;
         this.state = "PLAYING";
       }
+
+      this.enforcePlayerBaseline();
     });
+  }
+
+  private enforcePlayerBaseline = (): void => {
+    const entities = this.em.getAllEntities();
+    for (const entity of entities) {
+      if (this.em.getComponent<Collider>(entity, "Collider")?.faction === "PLAYER") {
+        const pos = this.em.getComponent<Position>(entity, "Position")!;
+        pos.y = this.ctx.canvas.height - 120;
+        break;
+      }
+    }
   }
 
   public triggerScreenShake(duration: number, intensity: number) {
@@ -333,7 +354,6 @@ export class Engine {
     requestAnimationFrame(this.loop);
   }
 
-  // SOTA FIX: In Arrow-Function konvertiert, um Scope-Verlust zu bannen
   private renderCinematicOutro = (delta: number): void => {
     this.outroTimer += delta;
     const cx = this.ctx.canvas.width / 2;
@@ -373,7 +393,6 @@ export class Engine {
     }
   }
 
-  // SOTA FIX: In Arrow-Function konvertiert, um Scope-Verlust zu bannen
   private drawBossHealthBar = (curr: number, max: number): void => {
     const w = 400; const h = 6;
     const x = this.ctx.canvas.width / 2 - w / 2; const y = 100;
@@ -386,7 +405,6 @@ export class Engine {
     this.ctx.restore();
   }
 
-  // SOTA FIX: In Arrow-Function konvertiert, um Scope-Verlust zu bannen
   private syncDOMHUD = (): void => {
     const scoreEl = document.getElementById("ui-score");
     const actEl = document.getElementById("ui-act");
@@ -406,7 +424,6 @@ export class Engine {
     }
   }
 
-  // SOTA FIX: In Arrow-Function konvertiert, um Scope-Verlust zu bannen
   private renderDebugUI = (entityCount: number): void => {
     let panel = document.getElementById("debug-panel");
     if (!panel) {
@@ -426,7 +443,6 @@ export class Engine {
     `;
   }
 
-  // SOTA FIX: In Arrow-Function konvertiert, um Scope-Verlust zu bannen
   private renderStargateWarp = (time: number): void => {
     const cx = this.ctx.canvas.width / 2;
     const cy = this.ctx.canvas.height / 2;
@@ -438,31 +454,6 @@ export class Engine {
       this.ctx.beginPath();
       this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
       this.ctx.stroke();
-    }
-  }
-
-  // SOTA FIX: In Arrow-Function konvertiert, um Scope-Verlust zu bannen
-  private handleEndState = (won: boolean): void => {
-    const hud = document.getElementById("hud");
-    const overlay = document.getElementById("screen-overlay");
-    const title = document.getElementById("overlay-title");
-    const desc = document.getElementById("overlay-desc");
-    const btn = document.getElementById("start-btn");
-
-    if (hud) hud.classList.add("opacity-0");
-    if (overlay) overlay.style.display = "flex";
-    if (btn) btn.textContent = won ? "TRANZENDIEREN" : `REBOOT ZU AKT ${this.checkpointAct}`;
-    
-    if (title && desc) {
-      if (!won) {
-        title.textContent = "SYSTEM ERROR // DAVE";
-        title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#ff3333]";
-        desc.textContent = `Vollständiger Hüllenbruch. HAL 9000: "Diese Mission ist zu wichtig für mich, Dave." Wiederaufnahme ab Akt ${this.checkpointAct}.`;
-      } else {
-        title.textContent = "THE STAR CHILD";
-        title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#00ffcc] drop-shadow-[0_0_15px_rgba(0,255,204,0.6)] animate-pulse";
-        desc.textContent = "Die Metamorphose ist abgeschlossen. Du hast das Ende der menschlichen Evolution erreicht.";
-      }
     }
   }
 }
