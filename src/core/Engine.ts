@@ -9,23 +9,23 @@ export class Engine {
   private systems: System[] = [];
   private lastTime = 0;
 
-  // Globaler Gameplay-Zustand
+  // Globaler Spielzustand (Kampagnen-Erweiterung)
   public score = 0;
   public lives = 3;
   public currentAct = 0;
-  public currentLevel = 1;
+  public currentLevel = 1; // Jetzt 4 Sektoren pro Akt!
   public state: GameState = "START";
 
-  // Checkpoint-Archiv
+  // Checkpoint-Speicherzellen (Fixiert auf den Beginn des jeweiligen Akts)
   public checkpointAct = 1;
   public checkpointLevel = 1;
 
-  // SOTA Live-Telemetrie Terminal
+  // Live-Telemetrie Terminal
   public debugActive = false;
   private fps = 0;
   private frameCount = 0;
   private fpsTimer = 0;
-  public lastDebugLog = "SYSTEMS OPERATIONAL // LUNAR TRANSMISSION SECURE";
+  public lastDebugLog = "SYSTEM RE-CALIBRATED // ALL SCHEMATICS NOMINAL";
 
   private shakeDuration = 0;
   private shakeIntensity = 0;
@@ -76,7 +76,7 @@ export class Engine {
         this.currentLevel = this.checkpointLevel;
         this.lives = 3;
         this.state = "PLAYING";
-        this.logDebug(`REBOOTING INTERFACE TO VALID CHECKPOINT: ACT ${this.checkpointAct}`);
+        this.logDebug(`RE-INITIALIZING SIMULATION FROM CHECKPOINT ENVELOPE: ACT ${this.checkpointAct}`);
         
         this.em.getAllEntities().forEach(e => {
           if (!this.em.hasComponent(e, "Health")) this.em.destroyEntity(e);
@@ -85,7 +85,7 @@ export class Engine {
         this.currentAct = 1;
         this.currentLevel = 1;
         this.state = "PLAYING";
-        this.logDebug("EVOLUTION MATRIX INITIALIZED");
+        this.logDebug("NEW ODYSSEY TIMELINE CONSTRUCTED");
       }
     });
   }
@@ -123,7 +123,6 @@ export class Engine {
 
     if (delta > 0.1) delta = 0.1;
 
-    // Diagnosedaten berechnen
     this.frameCount++;
     this.fpsTimer += delta;
     if (this.fpsTimer >= 1.0) {
@@ -132,7 +131,7 @@ export class Engine {
       this.fpsTimer = 0;
     }
 
-    this.ctx.fillStyle = "#010103";
+    this.ctx.fillStyle = "#010104";
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
     sfx.updateAmbientTheme(this.currentAct);
@@ -148,6 +147,11 @@ export class Engine {
     const entities = this.em.getAllEntities();
 
     if (this.state === "PLAYING" || this.state === "CINEMATIC") {
+      // SOTA REPARATUR: Schaltet die psychedelischen Spiralen für Akt IV UND das furiose Akt V Finale frei!
+      if (this.currentAct >= 4) {
+        this.renderStargateWarp(currentTime / 1000);
+      }
+
       for (const system of this.systems) {
         system.update(entities, this, delta);
       }
@@ -161,14 +165,12 @@ export class Engine {
         if (this.cinematicTimer <= 0) {
           document.getElementById("story-card")!.classList.add("pointer-events-none", "opacity-0");
           this.state = "PLAYING";
-          this.logDebug(`CINEMATIC ENDED // TRANSMISSION ENGAGED FOR ACT ${this.currentAct}`);
         }
       }
     }
 
     this.ctx.restore();
 
-    // SOTA ARCHITEKTUR-REPARATUR: Synchronisiere das HTML-HUD immer, bevor Zustandsprüfungen abbrechen
     this.syncDOMHUD();
 
     if (this.debugActive) this.renderDebugUI(entities.length);
@@ -211,14 +213,28 @@ export class Engine {
       document.body.appendChild(panel);
     }
     panel.innerHTML = `
-      <div class="text-emerald-300 font-bold border-b border-emerald-500/20 pb-1 mb-1">HAL 9000 TELEMETRIE TRACE</div>
-      <div>FREQUENCY PROCESS:  <span class="text-white">${this.fps} HZ</span></div>
-      <div>CORE STATE Machine: <span class="text-white">${this.state}</span></div>
-      <div>ECS ENTITY RANGE:   <span class="text-white">${entityCount}</span></div>
-      <div>CHAPTER MEILE:     <span class="text-white">ACT 0${this.currentAct} // SECTOR 0${this.currentLevel}</span></div>
-      <div>SAFE CHECKPOINT:   <span class="text-white">ACT 0${this.checkpointAct} // LVL 0${this.checkpointLevel}</span></div>
-      <div class="text-amber-400 border-t border-emerald-500/20 mt-1 pt-1">TRACE OUT: ${this.lastDebugLog}</div>
+      <div class="text-emerald-300 font-bold border-b border-emerald-500/20 pb-1 mb-1">HAL 9000 TELEMETRIE-DIAGNOSE</div>
+      <div>FREQUENCY:          <span class="text-white">${this.fps} FPS</span></div>
+      <div>CORE STATE:         <span class="text-white">${this.state}</span></div>
+      <div>ECS ENTITIES:       <span class="text-white">${entityCount}</span></div>
+      <div>ACTIVE SECTOR:      <span class="text-white">ACT 0${this.currentAct} // LEVEL 0${this.currentLevel}</span></div>
+      <div>MEILENSTEIN ACC:    <span class="text-white">ACT 0${this.checkpointAct} // LEVEL 0${this.checkpointLevel}</span></div>
+      <div class="text-amber-400 border-t border-emerald-500/20 mt-1 pt-1">TRACE: ${this.lastDebugLog}</div>
     `;
+  }
+
+  private renderStargateWarp(time: number) {
+    const cx = this.ctx.canvas.width / 2;
+    const cy = this.ctx.canvas.height / 2;
+    const maxRadius = Math.max(cx, cy);
+    for (let i = 0; i < 45; i++) {
+      const r = ((i * 24 + time * 150) % maxRadius);
+      this.ctx.strokeStyle = `hsla(${(i * 14 + time * 65) % 360}, 100%, 55%, ${1 - r / maxRadius})`;
+      this.ctx.lineWidth = 3.5;
+      this.ctx.beginPath();
+      this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      this.ctx.stroke();
+    }
   }
 
   private handleEndState(won: boolean) {
@@ -236,11 +252,11 @@ export class Engine {
       if (!won) {
         title.textContent = "SYSTEM ERROR // DAVE";
         title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#ff3333]";
-        desc.textContent = `Kritischer Strukturverlust. HAL 9000: "Es tut mir leid, Dave. Dieses Gespräch hat keinen Zweck mehr." Starte neu ab Akt ${this.checkpointAct}.`;
+        desc.textContent = `Vollständiger Hüllenbruch. HAL 9000: "Diese Mission ist zu wichtig für mich, als dass ich dir erlauben dürfte, sie zu gefährden." Wiederaufnahme ab Akt ${this.checkpointAct}.`;
       } else {
-        title.textContent = "BEYOND THE INFINITE";
-        title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#00ffcc] drop-shadow-[0_0_15px_rgba(0,255,204,0.6)]";
-        desc.textContent = "Das Sternenkind ist erwacht. Du hast das Ende der menschlichen Evolution erreicht.";
+        title.textContent = "THE STAR CHILD";
+        title.className = "text-3xl md:text-5xl font-black tracking-tighter mb-4 text-[#00ffcc] drop-shadow-[0_0_15px_rgba(0,255,204,0.6)] animate-pulse";
+        desc.textContent = "Die Metamorphose ist abgeschlossen. Du hast den ewigen Zyklus der Evolution durchbrochen und die Unendlichkeit betreten.";
       }
     }
   }

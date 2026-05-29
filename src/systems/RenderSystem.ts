@@ -21,7 +21,6 @@ export class RenderSystem implements System {
         switch (render.type) {
           case "ship":
             this.drawDiscoveryOne(ctx, pos.x, pos.y);
-            // SOTA SHIELD GLOW INDIKATOR
             const hasShield = engine.em.hasComponent(entity, "Modifier") && 
                               engine.em.getComponent<Modifier>(entity, "Modifier")!.type === "SHIELD";
             if (hasShield) {
@@ -44,6 +43,11 @@ export class RenderSystem implements System {
             ctx.strokeRect(pos.x, pos.y, render.size, render.size * 2.25);
             break;
 
+          case "cube":
+            // AKT I FEIND-SCHIFF: Zeichnet ein knochenförmiges, urzeitliches Stammes-Kriegsschiff (Kein flaches Kästchen mehr)
+            this.drawPrimitiveBoneSkiff(ctx, pos.x, pos.y, render.size);
+            break;
+
           case "predator":
             this.drawPredatorBeast(ctx, pos.x, pos.y, render.size);
             break;
@@ -57,27 +61,28 @@ export class RenderSystem implements System {
             break;
 
           case "xfighter":
+            // SOTA UPGRADE: Präzise Liniengeometrie eines hochentwickelten Abfangjägers
             this.drawXFighter(ctx, pos.x, pos.y, render.size);
             break;
 
           case "alien":
+            // SOTA UPGRADE: Pulsierende Vektor-Tentakel einer interdimensionalen Lebensform
             this.drawAlienOrganism(ctx, pos.x, pos.y, render.size);
             break;
 
           case "laser":
-            ctx.fillRect(pos.x - 1, pos.y, 3, render.size);
+            // EINDEUTIGE TRETNUNG: Feindliches Feuer wird als ultra-schmale, intensive Neon-Plasmakapsel gezeichnet
+            ctx.fillStyle = render.color;
+            ctx.fillRect(pos.x + 1, pos.y, 2, render.size);
             break;
 
           case "powerup_item":
+            // EINDEUTIGE TRENNUNG: Items sind rotierende Rauten-Kristalle mit weißem Energiekern
             this.drawPowerUpItem(ctx, pos.x, pos.y, render.size, render.color);
             break;
 
           case "echo":
             this.drawAstralEcho(ctx, pos.x, pos.y, render.size);
-            break;
-
-          case "cube":
-            ctx.fillRect(pos.x, pos.y, render.size, render.size * 2.2);
             break;
         }
 
@@ -118,26 +123,42 @@ export class RenderSystem implements System {
     }
   }
 
+  private drawPrimitiveBoneSkiff(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+    ctx.strokeStyle = "#5e4a3f";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + size / 2, y);
+    ctx.lineTo(x + size, y + size);
+    ctx.lineTo(x + size / 2, y + size * 0.7);
+    ctx.lineTo(x, y + size);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fillStyle = "#3e2d23";
+    ctx.fill();
+  }
+
   private drawPredatorBeast(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-    ctx.fillStyle = "#b45309";
-    ctx.fillRect(x, y + 4, size, size - 8);
+    ctx.strokeStyle = "#d97706";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI, true);
+    ctx.lineTo(x + size, y + size);
+    ctx.lineTo(x, y + size);
+    ctx.closePath();
+    ctx.stroke();
     ctx.fillStyle = "#ff3333";
-    ctx.fillRect(x + 3, y + 6, 3, 3);
-    ctx.fillRect(x + size - 6, y + 6, 3, 3);
+    ctx.fillRect(x + size / 4 - 1, y + size / 3, 2, 2);
+    ctx.fillRect(x + (size * 3) / 4 - 1, y + size / 3, 2, 2);
   }
 
   private drawLunarSatellite(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     ctx.strokeStyle = "#cbd5e1";
     ctx.lineWidth = 2;
+    ctx.strokeRect(x + 4, y + 4, size - 8, size - 8);
     ctx.beginPath();
-    ctx.moveTo(x + size / 2, y);
-    ctx.lineTo(x + size, y + size / 2);
-    ctx.lineTo(x + size / 2, y + size);
-    ctx.lineTo(x, y + size / 2);
-    ctx.closePath();
+    ctx.moveTo(x, y + size / 2); ctx.lineTo(x + size, y + size / 2);
+    ctx.moveTo(x + size / 2, y); ctx.lineTo(x + size / 2, y + size);
     ctx.stroke();
-    ctx.fillStyle = "#64748b";
-    ctx.fillRect(x + size / 2 - 3, y + size / 2 - 3, 6, 6);
   }
 
   private drawEVAPod(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
@@ -146,40 +167,49 @@ export class RenderSystem implements System {
     ctx.beginPath();
     ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = "#22d3ee";
-    ctx.fillRect(x + size / 2 - 4, y + 4, 8, 4);
+    ctx.fillStyle = "rgba(14, 116, 144, 0.4)";
+    ctx.fill();
   }
 
   private drawXFighter(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     ctx.strokeStyle = "#e11d48";
     ctx.lineWidth = 2.5;
     ctx.beginPath();
+    // Scherengeometrie des Sternenjägers
     ctx.moveTo(x, y); ctx.lineTo(x + size, y + size);
     ctx.moveTo(x + size, y); ctx.lineTo(x, y + size);
-    ctx.moveTo(x + size / 2, y); ctx.lineTo(x + size / 2, y + size);
+    ctx.moveTo(x + size / 2, y - 4); ctx.lineTo(x + size / 2, y + size + 4);
     ctx.stroke();
   }
 
   private drawAlienOrganism(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-    ctx.fillStyle = "#a855f7";
+    ctx.strokeStyle = "#a855f7";
+    ctx.lineWidth = 2;
+    const pulse = size / 2 + Math.sin(performance.now() * 0.01) * 3;
     ctx.beginPath();
-    ctx.arc(x + size / 2, y + size / 2, size / 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#c084fc";
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(x, y, size, size);
+    ctx.arc(x + size / 2, y + size / 2, pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(x + size / 2 - 2, y + size / 2 - 2, 4, 4);
   }
 
   private drawPowerUpItem(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string): void {
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, size, size);
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(x + size / 2, y);
+    ctx.lineTo(x + size, y + size / 2);
+    ctx.lineTo(x + size / 2, y + size);
+    ctx.lineTo(x, y + size / 2);
+    ctx.closePath();
+    ctx.stroke();
+    
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(x + size / 2 - 2, y + size / 2 - 2, 4, 4);
   }
 
   private drawAstralEcho(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-    ctx.strokeStyle = "rgba(255,255,255,0.4)";
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, y); ctx.lineTo(x + size, y + size);
