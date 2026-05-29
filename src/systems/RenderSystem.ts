@@ -6,16 +6,17 @@ import { Modifier } from "../components/Modifier";
 
 export class RenderSystem implements System {
   
-  // SOTA FIX: update als Arrow-Function deklariert, um den Context absolut zu sichern
   public update = (entities: Entity[], engine: Engine): void => {
     const ctx = engine.ctx;
     const width = ctx.canvas.width;
     const height = ctx.canvas.height;
 
-    // Dynamische Jupiter-Hintergrundberechnung
+    // --- SOTA KORREKTUR: JUPITER NUR IN ÜBERSICHTLICHEN SEKTOREN RENDERN ---
     if (engine.currentAct === 3) {
+      // In Akt 3 nähert sich das Schiff, Jupiter ist klein in der Ferne sichtbar
       this.drawJupiter(ctx, width * 0.82, height * 0.28, 55, false);
-    } else if (engine.currentAct === 5) {
+    } else if (engine.currentAct === 5 && engine.currentLevel < 3) {
+      // KORREKTUR: Jupiter füllt Sektor 1 & 2 gigantisch aus, verschwindet aber ab Sektor 3 wegen der Spiralen!
       this.drawJupiter(ctx, width * 0.78, height * 0.38, 240, true);
     }
 
@@ -107,7 +108,6 @@ export class RenderSystem implements System {
     }
   }
 
-  // SOTA KONTEXT-SIGIL: Alle privaten Sub-Routinen rigide als Arrow Properties fixiert
   private drawJupiter = (ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number, showDetails: boolean): void => {
     ctx.save();
     ctx.beginPath();
