@@ -20,7 +20,7 @@ export class Engine {
   public currentLevel = 1;
   public state: GameState = "START";
 
-  // Checkpoint-Archivierung
+  // Checkpoint-Archivierung (Fixiert auf den Beginn des jeweiligen Akts)
   public checkpointAct = 1;
   public checkpointLevel = 1;
 
@@ -33,7 +33,7 @@ export class Engine {
   private fps = 0;
   private frameCount = 0;
   private fpsTimer = 0;
-  public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // LOCKING ALL INSTANCE SCOPES";
+  public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // ENFORCED ABSOLUTE SECTOR 1 RESET";
 
   // Countdown- & Outro-Timer
   public warpTimerDisplay = 15.0;
@@ -131,7 +131,7 @@ export class Engine {
         this.currentAct = act;
         this.currentLevel = lvl;
         this.checkpointAct = act;
-        this.checkpointLevel = 1;
+        this.checkpointLevel = 1; // Rigide Absicherung auf Sektor 1
 
         this.em.getAllEntities().forEach(e => {
           if (!this.em.hasComponent(e, "Health")) this.em.destroyEntity(e);
@@ -201,12 +201,15 @@ export class Engine {
           this.score = 0;
         }
         
+        // --- RIGIDE CHECKPOINT FIXIERUNG UNTER ALLEN UMSTÄNDEN ---
         this.currentAct = this.checkpointAct;
-        this.currentLevel = 1;
-        this.lives = this.difficultyMode === "EASY" ? 5 : this.difficultyMode === "HARDCORE" ? 2 : 3;
+        this.currentLevel = 1; // Zwingt den Ladezyklus absolut IMMER in Sektor 1 zurück
+        
+        const maxLives = this.difficultyMode === "EASY" ? 5 : this.difficultyMode === "HARDCORE" ? 2 : 3;
+        this.lives = maxLives;
         this.state = "PLAYING";
         
-        this.logDebug(`REBOOT SYSTEM // ACT ${this.checkpointAct} SECTOR 1 // DIFFICULTY PRESERVED: ${this.difficultyMode}`);
+        this.logDebug(`REBOOT EXECUTED // FORCING ENTRANCE TO ACT 0${this.checkpointAct} SECTOR 1 // DIFFICULTY STABLE: ${this.difficultyMode}`);
         
         this.em.getAllEntities().forEach(e => {
           const isPlayer = this.em.hasComponent(e, "Collider") && this.em.getComponent<Collider>(e, "Collider")!.faction === "PLAYER";
@@ -453,7 +456,6 @@ export class Engine {
     }
   }
 
-  // SOTA CORE LOCK: Auch handleEndState schützt sich jetzt rigide als lexikalische Arrow Property!
   private handleEndState = (won: boolean): void => {
     const hud = document.getElementById("hud");
     const overlay = document.getElementById("screen-overlay");
