@@ -5,21 +5,20 @@ import { Renderable } from "../components/Renderable";
 import { Modifier } from "../components/Modifier";
 
 export class RenderSystem implements System {
-  update(entities: Entity[], engine: Engine): void {
+  
+  // SOTA FIX: update als Arrow-Function deklariert, um den Context absolut zu sichern
+  public update = (entities: Entity[], engine: Engine): void => {
     const ctx = engine.ctx;
     const width = ctx.canvas.width;
     const height = ctx.canvas.height;
 
-    // --- SOTA REPARATUR: DYNAMISCHE JUPITER INTERZEPTION IM HINTERGRUND ---
+    // Dynamische Jupiter-Hintergrundberechnung
     if (engine.currentAct === 3) {
-      // In Akt 3 nähert sich das Schiff, Jupiter ist in der Ferne sichtbar
       this.drawJupiter(ctx, width * 0.82, height * 0.28, 55, false);
     } else if (engine.currentAct === 5) {
-      // Im Finale nimmt der Gasriese gigantische Ausmaße an
       this.drawJupiter(ctx, width * 0.78, height * 0.38, 240, true);
     }
 
-    // Rendern der restlichen Gameplay-Entitäten auf dem Vordergrund
     for (const entity of entities) {
       if (engine.em.hasComponent(entity, "Position") && engine.em.hasComponent(entity, "Renderable")) {
         const pos = engine.em.getComponent<Position>(entity, "Position")!;
@@ -108,16 +107,13 @@ export class RenderSystem implements System {
     }
   }
 
-  // Prozedurale Render-Routine für den Planeten Jupiter
-  private drawJupiter(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number, showDetails: boolean): void {
+  // SOTA KONTEXT-SIGIL: Alle privaten Sub-Routinen rigide als Arrow Properties fixiert
+  private drawJupiter = (ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number, showDetails: boolean): void => {
     ctx.save();
-    
-    // Erstelle kreisförmige Maske für die Gasbänder
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.clip();
 
-    // Basis-Farbverlauf des Gasriesen (Terracotta, Ocker und Sandfarben)
     const planetGrad = ctx.createLinearGradient(cx, cy - radius, cx, cy + radius);
     planetGrad.addColorStop(0, "#291a10");
     planetGrad.addColorStop(0.18, "#7c2d12");
@@ -131,7 +127,6 @@ export class RenderSystem implements System {
     ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
 
     if (showDetails) {
-      // Helle, sturminduzierte Wolkenbänder einzeichnen
       ctx.fillStyle = "rgba(254, 240, 138, 0.08)";
       ctx.fillRect(cx - radius, cy - radius * 0.3, radius * 2, radius * 0.12);
       ctx.fillRect(cx - radius, cy + radius * 0.15, radius * 2, radius * 0.08);
@@ -140,7 +135,6 @@ export class RenderSystem implements System {
       ctx.fillRect(cx - radius, cy - radius * 0.05, radius * 2, radius * 0.14);
       ctx.fillRect(cx - radius, cy + radius * 0.4, radius * 2, radius * 0.1);
 
-      // SOTA DETAILS: Der Große Rote Fleck (Great Red Spot)
       ctx.fillStyle = "#ea580c";
       ctx.shadowBlur = 20;
       ctx.shadowColor = "#ea580c";
@@ -148,10 +142,8 @@ export class RenderSystem implements System {
       ctx.ellipse(cx + radius * 0.28, cy + radius * 0.22, radius * 0.22, radius * 0.13, 0, 0, Math.PI * 2);
       ctx.fill();
     }
-
     ctx.restore();
 
-    // Sphärische 3D-Schattenblende über den Planeten legen für orbitale Plastizität
     ctx.save();
     const shadowGrad = ctx.createRadialGradient(cx - radius * 0.2, cy - radius * 0.2, radius * 0.3, cx, cy, radius);
     shadowGrad.addColorStop(0, "rgba(255, 255, 255, 0.04)");
@@ -165,7 +157,7 @@ export class RenderSystem implements System {
     ctx.restore();
   }
 
-  private drawDiscoveryOne(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  private drawDiscoveryOne = (ctx: CanvasRenderingContext2D, x: number, y: number): void => {
     ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; ctx.beginPath();
     ctx.arc(x + 20, y + 10, 12, 0, Math.PI * 2); ctx.fillStyle = "#ffffff"; ctx.fill(); ctx.stroke();
     ctx.fillStyle = "#ff3333"; ctx.beginPath(); ctx.arc(x + 20, y + 8, 2, 0, Math.PI * 2); ctx.fill();
@@ -177,7 +169,7 @@ export class RenderSystem implements System {
     }
   }
 
-  private drawHalBossMainframe(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  private drawHalBossMainframe = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void => {
     ctx.fillStyle = "#09090b"; ctx.shadowBlur = 40; ctx.shadowColor = "rgba(0,0,0,0.8)";
     ctx.fillRect(x, y, size * 2.5, size); ctx.strokeStyle = "#27272a"; ctx.lineWidth = 3; ctx.strokeRect(x, y, size * 2.5, size);
     ctx.strokeStyle = "rgba(255,255,255,0.06)"; ctx.lineWidth = 1;
@@ -190,43 +182,48 @@ export class RenderSystem implements System {
     ctx.fillStyle = "#fef08a"; ctx.shadowBlur = 5; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
   }
 
-  private drawPrimitiveBoneSkiff(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  private drawPrimitiveBoneSkiff = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void => {
     ctx.strokeStyle = "#a1a1aa"; ctx.lineWidth = 2; ctx.beginPath();
     ctx.moveTo(x + size / 2, y + size); ctx.lineTo(x + size, y); ctx.lineTo(x + size / 2, y + size * 0.3); ctx.lineTo(x, y);
     ctx.closePath(); ctx.stroke(); ctx.fillStyle = "#27272a"; ctx.fill();
   }
 
-  private drawPredatorBeast(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  private drawPredatorBeast = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void => {
     ctx.strokeStyle = "#f97316"; ctx.lineWidth = 2; ctx.beginPath();
     ctx.arc(x + size / 2, y + size / 2, size / 2, Math.PI, 0, true);
     ctx.lineTo(x + size, y); ctx.lineTo(x, y); ctx.closePath(); ctx.stroke();
     ctx.fillStyle = "#ff3333"; ctx.fillRect(x + size / 4 - 1, y + size * 0.6, 2, 2); ctx.fillRect(x + (size * 3) / 4 - 1, y + size * 0.6, 2, 2);
   }
 
-  private drawLunarSatellite(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  private drawLunarSatellite = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void => {
     ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 2; ctx.strokeRect(x + 4, y + 4, size - 8, size - 8);
     ctx.beginPath(); ctx.moveTo(x, y + size / 2); ctx.lineTo(x + size, y + size / 2); ctx.moveTo(x + size / 2, y); ctx.lineTo(x + size / 2, y + size); ctx.stroke();
   }
 
-  private drawXFighter(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  private drawEVAPod = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void => {
+    ctx.strokeStyle = "#eab308"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "rgba(14, 116, 144, 0.4)"; ctx.fill();
+  }
+
+  private drawXFighter = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void => {
     ctx.strokeStyle = "#e11d48"; ctx.lineWidth = 2.5; ctx.beginPath();
     ctx.moveTo(x, y); ctx.lineTo(x + size, y + size); ctx.moveTo(x + size, y); ctx.lineTo(x, y + size);
     ctx.moveTo(x + size / 2, y); ctx.lineTo(x + size / 2, y + size + 6); ctx.stroke();
   }
 
-  private drawAlienOrganism(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  private drawAlienOrganism = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void => {
     ctx.fillStyle = "#a855f7"; ctx.beginPath(); ctx.arc(x + size / 2, y + size / 2, size / 3, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "#c084fc"; ctx.lineWidth = 1.5; ctx.strokeRect(x, y, size, size);
   }
 
-  private drawPowerUpItem(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string): void {
+  private drawPowerUpItem = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string): void => {
     ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.beginPath();
     ctx.moveTo(x + size / 2, y); ctx.lineTo(x + size, y + size / 2); ctx.lineTo(x + size / 2, y + size); ctx.lineTo(x, y + size / 2);
     ctx.closePath(); ctx.stroke();
     ctx.fillStyle = "#ffffff"; ctx.fillRect(x + size / 2 - 2, y + size / 2 - 2, 4, 4);
   }
 
-  private drawAstralEcho(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  private drawAstralEcho = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void => {
     ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + size, y + size); ctx.stroke();
   }
 }
