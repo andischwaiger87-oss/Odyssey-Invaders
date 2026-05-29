@@ -44,11 +44,12 @@ export class RenderSystem implements System {
             break;
 
           case "cube":
-            // AKT I FEIND-SCHIFF: Zeichnet ein knochenförmiges, urzeitliches Stammes-Kriegsschiff (Kein flaches Kästchen mehr)
+            // AKT I FEIND-SCHIFF: Umgedrehtes, knochenförmiges Pfeilschiff, das nach UNTEN zeigt
             this.drawPrimitiveBoneSkiff(ctx, pos.x, pos.y, render.size);
             break;
 
           case "predator":
+            // Umgedrehte Bestien-Phalanx (zeigt nach unten)
             this.drawPredatorBeast(ctx, pos.x, pos.y, render.size);
             break;
 
@@ -61,23 +62,27 @@ export class RenderSystem implements System {
             break;
 
           case "xfighter":
-            // SOTA UPGRADE: Präzise Liniengeometrie eines hochentwickelten Abfangjägers
+            // KORREKTUR: Sternenjäger fliegt jetzt mit sichtbarem Cockpit-Vektor nach unten
             this.drawXFighter(ctx, pos.x, pos.y, render.size);
             break;
 
           case "alien":
-            // SOTA UPGRADE: Pulsierende Vektor-Tentakel einer interdimensionalen Lebensform
             this.drawAlienOrganism(ctx, pos.x, pos.y, render.size);
             break;
 
           case "laser":
-            // EINDEUTIGE TRETNUNG: Feindliches Feuer wird als ultra-schmale, intensive Neon-Plasmakapsel gezeichnet
-            ctx.fillStyle = render.color;
-            ctx.fillRect(pos.x + 1, pos.y, 2, render.size);
+            // KORREKTUR: Schüsse sind wieder reine, neon-glühende Vektor-Striche (Striche statt Kästchen)
+            ctx.strokeStyle = render.color;
+            ctx.lineWidth = 2.5;
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = render.color;
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(pos.x, pos.y + render.size); // Zeichnet einen vertikalen Vektor-Strich
+            ctx.stroke();
             break;
 
           case "powerup_item":
-            // EINDEUTIGE TRENNUNG: Items sind rotierende Rauten-Kristalle mit weißem Energiekern
             this.drawPowerUpItem(ctx, pos.x, pos.y, render.size, render.color);
             break;
 
@@ -124,31 +129,33 @@ export class RenderSystem implements System {
   }
 
   private drawPrimitiveBoneSkiff(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-    ctx.strokeStyle = "#5e4a3f";
+    ctx.strokeStyle = "#a1a1aa"; // Kühles Knochen-Silber statt unscheinbarem Braun
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(x + size / 2, y);
-    ctx.lineTo(x + size, y + size);
-    ctx.lineTo(x + size / 2, y + size * 0.7);
-    ctx.lineTo(x, y + size);
+    // Invertierte Pfeilspitze: Zeigt jetzt exakt nach UNTEN zum Spieler
+    ctx.moveTo(x + size / 2, y + size); 
+    ctx.lineTo(x + size, y);
+    ctx.lineTo(x + size / 2, y + size * 0.3);
+    ctx.lineTo(x, y);
     ctx.closePath();
     ctx.stroke();
-    ctx.fillStyle = "#3e2d23";
+    ctx.fillStyle = "#27272a";
     ctx.fill();
   }
 
   private drawPredatorBeast(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-    ctx.strokeStyle = "#d97706";
+    ctx.strokeStyle = "#f97316";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI, true);
-    ctx.lineTo(x + size, y + size);
-    ctx.lineTo(x, y + size);
+    // Bogen nach unten geöffnet
+    ctx.arc(x + size / 2, y + size / 2, size / 2, Math.PI, 0, true);
+    ctx.lineTo(x + size, y);
+    ctx.lineTo(x, y);
     ctx.closePath();
     ctx.stroke();
-    ctx.fillStyle = "#ff3333";
-    ctx.fillRect(x + size / 4 - 1, y + size / 3, 2, 2);
-    ctx.fillRect(x + (size * 3) / 4 - 1, y + size / 3, 2, 2);
+    ctx.fillStyle = "#ef4444";
+    ctx.fillRect(x + size / 4 - 1, y + size * 0.6, 2, 2);
+    ctx.fillRect(x + (size * 3) / 4 - 1, y + size * 0.6, 2, 2);
   }
 
   private drawLunarSatellite(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
@@ -175,22 +182,22 @@ export class RenderSystem implements System {
     ctx.strokeStyle = "#e11d48";
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    // Scherengeometrie des Sternenjägers
+    // Flügel-X
     ctx.moveTo(x, y); ctx.lineTo(x + size, y + size);
     ctx.moveTo(x + size, y); ctx.lineTo(x, y + size);
-    ctx.moveTo(x + size / 2, y - 4); ctx.lineTo(x + size / 2, y + size + 4);
+    // Nach unten ragende Cockpit-Nase
+    ctx.moveTo(x + size / 2, y); ctx.lineTo(x + size / 2, y + size + 6);
     ctx.stroke();
   }
 
   private drawAlienOrganism(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-    ctx.strokeStyle = "#a855f7";
-    ctx.lineWidth = 2;
-    const pulse = size / 2 + Math.sin(performance.now() * 0.01) * 3;
+    ctx.fillStyle = "#a855f7";
     ctx.beginPath();
-    ctx.arc(x + size / 2, y + size / 2, pulse, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(x + size / 2 - 2, y + size / 2 - 2, 4, 4);
+    ctx.arc(x + size / 2, y + size / 2, size / 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#c084fc";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x, y, size, size);
   }
 
   private drawPowerUpItem(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string): void {
