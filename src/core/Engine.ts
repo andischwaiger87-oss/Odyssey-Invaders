@@ -24,6 +24,9 @@ export class Engine {
   public checkpointAct = 1;
   public checkpointLevel = 1;
 
+  // SOTA SIGNAL-LAYER: Meldet dem Director ein erzwungenes Reset-Event
+  public levelResetPending = false;
+
   // Ausgelesene DOM-Einstellungen
   public difficultyMode = "NOMINAL";
   public controlInterface = "MOUSE";
@@ -33,7 +36,7 @@ export class Engine {
   private fps = 0;
   private frameCount = 0;
   private fpsTimer = 0;
-  public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // ENFORCED ABSOLUTE SECTOR 1 RESET";
+  public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // REBOOT CODES HARDENED";
 
   // Countdown- & Outro-Timer
   public warpTimerDisplay = 15.0;
@@ -131,7 +134,8 @@ export class Engine {
         this.currentAct = act;
         this.currentLevel = lvl;
         this.checkpointAct = act;
-        this.checkpointLevel = 1; // Rigide Absicherung auf Sektor 1
+        this.checkpointLevel = 1;
+        this.levelResetPending = true; // Setze Reset-Signal für Krypto-Warps
 
         this.em.getAllEntities().forEach(e => {
           if (!this.em.hasComponent(e, "Health")) this.em.destroyEntity(e);
@@ -201,9 +205,9 @@ export class Engine {
           this.score = 0;
         }
         
-        // --- RIGIDE CHECKPOINT FIXIERUNG UNTER ALLEN UMSTÄNDEN ---
         this.currentAct = this.checkpointAct;
-        this.currentLevel = 1; // Zwingt den Ladezyklus absolut IMMER in Sektor 1 zurück
+        this.currentLevel = 1; 
+        this.levelResetPending = true; // SOTA ZÜNDUNG: Feuere das Reset-Signal ab, um Sektor-Skipping zu bannen
         
         const maxLives = this.difficultyMode === "EASY" ? 5 : this.difficultyMode === "HARDCORE" ? 2 : 3;
         this.lives = maxLives;
@@ -229,6 +233,7 @@ export class Engine {
         this.lives = this.difficultyMode === "EASY" ? 5 : this.difficultyMode === "HARDCORE" ? 2 : 3;
         this.currentAct = 1;
         this.currentLevel = 1;
+        this.levelResetPending = true; // Signal für Erststart setzen
         this.state = "PLAYING";
       }
 
