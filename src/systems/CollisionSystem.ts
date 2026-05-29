@@ -10,8 +10,17 @@ import { ParticleSystem } from "./ParticleSystem";
 import { sfx } from "../core/AudioEngine";
 
 export class CollisionSystem implements System {
-  update(entities: Entity[], engine: Engine): void {
-    // Filtere alle Entitäten mit einer Position und einer Hitbox
+  update(entities: Entity[], engine: Engine, delta: number): void {
+    // I-Frame Timer für alle Entitäten mit Lebenskomponente runtertackern
+    for (const entity of entities) {
+      if (engine.em.hasComponent(entity, "Health")) {
+        const health = engine.em.getComponent<Health>(entity, "Health")!;
+        if (health.invulnerableTimer > 0) {
+          health.invulnerableTimer -= delta;
+        }
+      }
+    }
+
     const collidables = entities.filter(e => 
       engine.em.hasComponent(e, "Position") && engine.em.hasComponent(e, "Collider")
     );
@@ -21,7 +30,6 @@ export class CollisionSystem implements System {
         const e1 = collidables[i];
         const e2 = collidables[j];
 
-        // Sicherheits-Check gegen Doppel-Kollisionen im selben Frame
         if (!engine.em.hasComponent(e1, "Collider") || !engine.em.hasComponent(e2, "Collider")) {
           continue;
         }
@@ -32,7 +40,6 @@ export class CollisionSystem implements System {
         const pos2 = engine.em.getComponent<Position>(e2, "Position")!;
         const col2 = engine.em.getComponent<Collider>(e2, "Collider")!;
 
-        // AABB Kollisionsbox-Berechnung
         if (
           pos1.x < pos2.x + col2.width &&
           pos1.x + col1.width > pos2.x &&
@@ -47,19 +54,21 @@ export class CollisionSystem implements System {
 
   private handleCollision(engine: Engine, e1: Entity, f1: FactionType, e2: Entity, f2: FactionType) {
     
-    // Spieler-Laser eliminiert einen Monolithen / Invader
+    // Spieler-Laser trifft Invasor
     if ((f1 === "PLAYER_LASER" && f2 === "INVADER") || (f2 === "PLAYER_LASER" && f1 === "INVADER")) {
       const invaderEntity = f1 === "INVADER" ? e1 : e2;
-      // ARCHITEKTUR-FIX: Zweiten Parameter "Position" hinzugefügt
-      const pos = engine.em.getComponent<Position>(invaderEntity, "Position")!;
+      const laserEntity = f1 === "PLAYER_LASER" ? e1 : e2;
       
-      engine.triggerScreenShake(0.2, 12);
-      ParticleSystem.spawnExplosion(engine, pos.x + 12, pos.y + 25, "#ff3333", 25);
+      const pos = engine.em.getComponent<Position>(invaderEntity, "Position")!;
+      const render = engine.em.getComponent<Renderable>(invaderEntity, "Renderable")!;
+      
+      engine.triggerScreenShake(0.15, 10);
+      ParticleSystem.spawnExplosion(engine, pos.x + 12, pos.y + 15, render.color, 20);
       sfx.playExplosion(true);
 
-      if (Math.random() < 0.15) {
-        this.dropPowerUp(engine, pos.x, pos.y);
-      }
+      engine.logDebug(`COLLISION: PLAYER_LASER DESTROYED ${render.type.toUpperCase()}`);
+
+      if (Math.random() < 0.12) this.dropPowerUp(engine, pos.x, pos.y);
 
       engine.em.destroyEntity(e1);
       engine.em.destroyEntity(e2);
@@ -67,38 +76,46 @@ export class CollisionSystem implements System {
       return;
     }
 
-    // HAL-9000 Sabotage-Laser trifft das Spielerschiff
+    // Feindliches Geschoss trifft Spieler (Discovery One)
     if ((f1 === "INVADER_LASER" && f2 === "PLAYER") || (f2 === "INVADER_LASER" && f1 === "PLAYER")) {
       const playerEntity = f1 === "PLAYER" ? e1 : e2;
       const laserEntity = f1 === "PLAYER" ? e2 : e1;
-      // ARCHITEKTUR-FIX: Zweiten Parameter "Position" hinzugefügt
-      const pos = engine.em.getComponent<Position>(playerEntity, "Position")!;
+      
+      const health = engine.em.getComponent<Health>(playerEntity, "Health")!;
+      
+      // SOTA REPARATUR: Wenn I-Frames aktiv sind, verpufft der Treffer wirkungslos!
+      if (health.invulnerableTimer > 0) {
+        engine.em.destroyEntity(laserEntity);
+        return;
+      }
 
-      engine.triggerScreenShake(0.4, 25);
+      const pos = engine.em.getComponent<Position>(playerEntity, "Position")!;
+      engine.triggerScreenShake(0.4, 22);
 
       const flashEl = document.getElementById("damage-flash");
       if (flashEl) {
         flashEl.classList.remove("flash-active");
-        void flashEl.offsetWidth; // DOM Reflow Trigger
+        void flashEl.offsetWidth;
         flashEl.classList.add("flash-active");
       }
 
-      ParticleSystem.spawnExplosion(engine, pos.x + 20, pos.y + 20, "#ffffff", 40);
+      ParticleSystem.spawnExplosion(engine, pos.x + 20, pos.y + 20, "#ffffff", 35);
       sfx.playExplosion(false);
-      
       engine.em.destroyEntity(laserEntity);
       
-      const health = engine.em.getComponent<Health>(playerEntity, "Health")!;
       health.current -= 1;
       engine.lives = health.current;
+      health.invulnerableTimer = 1.2; // 1,2 Sekunden absolute Unverwundbarkeit
+
+      engine.logDebug(`IMPACT DETECTED // REMAINING LIVES: ${health.current}`);
 
       if (health.current <= 0) {
-        engine.gameOver = true;
+        engine.state = "GAMEOVER";
       }
       return;
     }
 
-    // Spieler sammelt fallendes Upgrade ein
+    // Spieler sammelt Buff ein
     if ((f1 === "PLAYER" && f2 === "POWERUP") || (f2 === "PLAYER" && f1 === "POWERUP")) {
       const playerEntity = f1 === "PLAYER" ? e1 : e2;
       const powerUpEntity = f1 === "PLAYER" ? e2 : e1;
@@ -107,6 +124,7 @@ export class CollisionSystem implements System {
       engine.em.addComponent(playerEntity, new Modifier("TRI_BEAM", 5.0));
       engine.em.destroyEntity(powerUpEntity);
       engine.score += 500;
+      engine.logDebug("BUFF ACQUIRED // WEAPON MODE: TRI_BEAM ACTUATED");
       return;
     }
   }
@@ -114,8 +132,8 @@ export class CollisionSystem implements System {
   private dropPowerUp(engine: Engine, x: number, y: number) {
     const powerUp = engine.em.createEntity();
     engine.em.addComponent(powerUp, new Position(x, y));
-    engine.em.addComponent(powerUp, new Velocity(0, 150));
-    engine.em.addComponent(powerUp, new Renderable("#00ffcc", 15, "cube"));
-    engine.em.addComponent(powerUp, new Collider(15, 15, "POWERUP"));
+    engine.em.addComponent(powerUp, new Velocity(0, 140));
+    engine.em.addComponent(powerUp, new Renderable("#00ffcc", 12, "cube"));
+    engine.em.addComponent(powerUp, new Collider(12, 12, "POWERUP"));
   }
 }

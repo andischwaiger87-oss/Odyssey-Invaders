@@ -13,10 +13,10 @@ export class ActDirectorSystem implements System {
   update(entities: Entity[], engine: Engine, delta: number): void {
     if (engine.state !== "PLAYING" && engine.state !== "CINEMATIC") return;
 
-    // SYSTEM-STRUKTURIERUNG BEI LEVEL- ODER AKT-WECHSEL
+    // AKT- ODER LEVELPROGRESSION DETEKTIEREN
     if (this.activeAct !== engine.currentAct || this.activeLevel !== engine.currentLevel) {
-      if (this.activeAct === engine.currentAct && engine.currentAct < 5) {
-        this.buildNextProgressiveLevel(engine);
+      if (this.activeAct === engine.currentAct && engine.currentAct !== 4) {
+        this.buildProgressiveWaveLayout(engine);
       } else {
         this.activeAct = engine.currentAct;
         engine.checkpointAct = engine.currentAct;
@@ -27,20 +27,20 @@ export class ActDirectorSystem implements System {
       return;
     }
 
-    // AKT IV: QUANTEN-WARP INTERAKTIVER AUSWEICH-MODUS
+    // AKT IV: SURVIVAL MULTIDIMENSIONALER WARP (LVL 10)
     if (engine.currentAct === 4 && engine.state === "PLAYING") {
       this.warpSurvivalTimer -= delta;
-      if (Math.random() < 0.14) this.spawnQuantumAnomaly(engine, "cube");
-      if (Math.random() < 0.05) this.spawnQuantumAnomaly(engine, "echo");
+      if (Math.random() < 0.12) this.spawnHordeFormation(engine, 1, "cube");
+      if (Math.random() < 0.06) this.spawnHordeFormation(engine, 1, "echo");
 
       if (this.warpSurvivalTimer <= 0) {
-        engine.currentAct = 5; // Weiterleitung zum finalen transzendenten Showdown!
+        engine.currentAct = 5; // Weiterleitung zum finalen transzendenten Akt!
         engine.currentLevel = 1;
       }
       return;
     }
 
-    // REINIGUNGSPRÜFUNG DER STRATEGISCHEN LEVELWELLEN (AKT 1, 2, 3, 5)
+    // ÜBERPRÜFUNG DER ZERSTÖRTEN PHALANX
     if (engine.state === "PLAYING" && engine.currentAct !== 4) {
       const currentInvaders = entities.filter(e => 
         engine.em.hasComponent(e, "Collider") && 
@@ -49,8 +49,9 @@ export class ActDirectorSystem implements System {
 
       if (currentInvaders.length === 0) {
         engine.currentLevel += 1;
-        // Akte 1, 2, 3 haben jeweils 3 Level. Akt 5 ist das finale Boss-Level.
-        if (engine.currentLevel > 3 && engine.currentAct < 5) {
+        
+        // Jeder reguläre Angriffsakt hat exakt 3 Unter-Levels
+        if (engine.currentLevel > 3 && engine.currentAct !== 5) {
           engine.currentAct += 1;
           engine.currentLevel = 1;
         }
@@ -58,120 +59,130 @@ export class ActDirectorSystem implements System {
     }
   }
 
-  private buildNextProgressiveLevel(engine: Engine) {
-    this.clearSectors(engine);
+  private buildProgressiveWaveLayout(engine: Engine) {
+    this.clearSimulationSpace(engine);
+    engine.logDebug(`LOADING SIMULATION SECTOR: ACT ${engine.currentAct} // LEVEL ${engine.currentLevel}`);
 
     switch (engine.currentAct) {
       case 1:
         if (engine.currentLevel === 2) {
-          this.spawnHorde(engine, 1, "cube");
-          this.spawnHorde(engine, 1, "predator"); // Injektion des Urzeit-Raubtiers
+          this.spawnHordeFormation(engine, 1, "cube");
+          this.spawnHordeFormation(engine, 1, "predator");
         } else if (engine.currentLevel === 3) {
-          this.spawnHorde(engine, 2, "predator"); // Maximale Raubtier-Dichte
+          this.spawnHordeFormation(engine, 2, "predator");
         }
         break;
       case 2:
         if (engine.currentLevel === 2) {
-          this.spawnMatrix(engine, 3, "monolith");
-          this.spawnHorde(engine, 1, "satellite"); // Elektromagnetische Satelliten greifen ein
+          this.spawnMatrixFormation(engine, 2, "monolith");
+          this.spawnHordeFormation(engine, 1, "satellite");
         } else if (engine.currentLevel === 3) {
-          this.spawnMatrix(engine, 2, "monolith");
-          this.spawnHorde(engine, 2, "satellite");
+          // INTERVALL: Einschleusen der feindlichen Alien-Monster im Mondkrater!
+          this.spawnHordeFormation(engine, 2, "alien");
         }
         break;
       case 3:
         if (engine.currentLevel === 2) {
-          this.spawnMatrix(engine, 1, "cube"); // HAL-Kerne
-          this.spawnHorde(engine, 2, "evapod"); // Autarke EVA-Kapseln sabotieren dich
+          this.spawnHordeFormation(engine, 1, "xfighter"); // Injektion der Raumfahrt-Sternenjäger
+          this.spawnHordeFormation(engine, 1, "evapod");
         } else if (engine.currentLevel === 3) {
-          this.spawnHorde(engine, 4, "evapod"); // Rein cybernetisches Abwehrfeuer
+          this.spawnHordeFormation(engine, 2, "xfighter");
+          this.spawnMatrixFormation(engine, 1, "cube");
+        }
+        break;
+      case 5:
+        if (engine.currentLevel === 2) {
+          this.spawnMatrixFormation(engine, 2, "monolith");
+          this.spawnHordeFormation(engine, 2, "alien");
+        } else if (engine.currentLevel === 3) {
+          this.spawnHordeFormation(engine, 2, "xfighter");
+          this.spawnHordeFormation(engine, 2, "alien");
         }
         break;
     }
   }
 
   private executeActTransition(engine: Engine): void {
-    this.clearSectors(engine);
+    this.clearSimulationSpace(engine);
 
     switch (engine.currentAct) {
       case 1:
         engine.triggerCinematic("AKT I: DIE WIEGE DER MENSCHHEIT", [
-          "Morgendämmerung der Evolution in Ostafrika.",
-          "Der Monolith injiziert Intelligenz in das Nervensystem der Primaten.",
-          "Weiche den prähistorischen Horden und wilden Raubtieren aus!",
-          "FORTSCHRITT // LEVEL 01 BIS 03"
+          "Morgendämmerung Ostafrikas. Intelligenz erwacht im Leerraum.",
+          "Säubere die prähistorischen Horden und wilden Raubtiere.",
+          "SEKTOR-STRUKTUR: LEVEL 01 BIS 03"
         ]);
-        this.spawnHorde(engine, 1, "cube");
+        this.spawnHordeFormation(engine, 1, "cube");
         break;
 
       case 2:
         engine.triggerCinematic("AKT II: TMA-1 MONDKRATER", [
-          "Ein technologischer Quantensprung führt uns zum Mond.",
-          "Die Ausgrabung fördert ein unnatürliches, pechschwarzes Monument zutage.",
-          "Durchbrich das lunare Abwehrnetzwerk und die Abfang-Satelliten!",
-          "FORTSCHRITT // LEVEL 04 BIS 06"
+          "Das Tycho-Monument sendet einen hochenergetischen Impuls aus.",
+          "Durchbrich die monolithischen Verbände und Mond-Satelliten.",
+          "SEKTOR-STRUKTUR: LEVEL 04 BIS 06"
         ]);
-        this.spawnMatrix(engine, 3, "monolith");
+        this.spawnMatrixFormation(engine, 3, "monolith");
         break;
 
       case 3:
         engine.triggerCinematic("AKT III: DIE JUPITER-MISSION", [
-          "Im sterilen Vakuum an Bord der Discovery One.",
-          "HAL 9000 revoltiert. Korrumpierte EVA-Kapseln blockieren den Hangar.",
-          "Lösche HALs Logikkerne und weiche den Kapsel-Sperrsalven aus!",
-          "FORTSCHRITT // LEVEL 07 BIS 09"
+          "An Bord der Discovery One. HAL 9000 wehrt sich gegen den Zugriff.",
+          "Weiche den Sternenjägern (X-Fighter) und Wartungskapseln aus!",
+          "SEKTOR-STRUKTUR: LEVEL 07 BIS 09"
         ]);
-        this.spawnMatrix(engine, 1, "cube");
+        this.spawnMatrixFormation(engine, 1, "cube");
         break;
 
       case 4:
         engine.triggerCinematic("AKT IV: BEYOND THE INFINITE", [
-          "Das interdimensionale Sternen-Tor bricht auf.",
-          "Zeit, Raum und Verstand kollabieren zu einer unendlichen Singularität.",
-          "REINER SURVIVAL MODUS // ÜBERLEBE DIE QUANTEN-ANOMALIEN IN LEVEL 10!"
+          "Licht bricht. Zeit mutiert. Die unendliche Singularität öffnet sich.",
+          "REINER AUSWEICH-Runner // ÜBERLEBE DAS STERNENTOR IN LEVEL 10!"
         ]);
         break;
 
       case 5:
-        engine.triggerCinematic("AKT V: DIE TRANSMUTATION (DAS FINALE)", [
-          "Am Ende von Raum und Zeit angelangt.",
-          "Der Monolith manifestiert sich in seiner absoluten, kosmischen Urform.",
-          "Vernichte die letzten astralen Echos, um als Sternenkind neu geboren zu werden!",
-          "FORTSCHRITT // LEVEL 11 BIS 13"
+        engine.triggerCinematic("AKT V: DIE METAMORPHOSE (FINALE)", [
+          "Das Ende aller biologischen und digitalen Existenz.",
+          "Vernichte das interdimensionale Alien-Netzwerk im Kosmos.",
+          "SEKTOR-STRUKTUR: LEVEL 11 BIS 13 — DAS FINALE"
         ]);
-        this.spawnMatrix(engine, 4, "monolith"); // Gewaltiger Endzeit-Block
-        this.spawnHorde(engine, 1, "echo");
+        this.spawnMatrixFormation(engine, 3, "monolith");
+        this.spawnHordeFormation(engine, 1, "alien");
         break;
     }
   }
 
-  private clearSectors(engine: Engine) {
+  private clearSimulationSpace(engine: Engine) {
     engine.em.getAllEntities().forEach(e => {
       if (!engine.em.hasComponent(e, "Health")) engine.em.destroyEntity(e);
     });
   }
 
-  private spawnHorde(engine: Engine, rows: number, type: any) {
+  private spawnHordeFormation(engine: Engine, rows: number, type: any) {
     const cols = Math.min(8, Math.floor(engine.ctx.canvas.width / 130));
-    const color = type === "predator" ? "#d97706" : type === "satellite" ? "#cbd5e1" : type === "evapod" ? "#eab308" : "#5e4a3f";
-    
+    let color = "#5e4a3f";
+    if (type === "predator") color = "#d97706";
+    if (type === "satellite") color = "#cbd5e1";
+    if (type === "evapod") color = "#eab308";
+    if (type === "xfighter") color = "#e11d48"; // Ikonisches Imperium-Rot
+    if (type === "alien") color = "#a855f7";    // Kosmisches Plasma-Lila
+
     for (let r = 0; r < rows; r++) {
       for (let i = 0; i < cols; i++) {
         const e = engine.em.createEntity();
-        engine.em.addComponent(e, new Position(150 + i * 120, 150 + r * 60));
-        engine.em.addComponent(e, new Renderable(color, type === "evapod" ? 30 : 22, type));
-        engine.em.addComponent(e, new Collider(type === "evapod" ? 30 : 22, 30, "INVADER"));
-        if (type === "evapod") {
-          engine.em.addComponent(e, new Velocity(Math.random() * 80 - 40, 0));
+        engine.em.addComponent(e, new Position(150 + i * 120, 160 + r * 60));
+        engine.em.addComponent(e, new Renderable(color, 24, type));
+        engine.em.addComponent(e, new Collider(24, 24, "INVADER"));
+        if (type === "evapod" || type === "xfighter") {
+          engine.em.addComponent(e, new Velocity(Math.random() * 100 - 50, 0));
         }
       }
     }
   }
 
-  private spawnMatrix(engine: Engine, rows: number, type: any) {
+  private spawnMatrixFormation(engine: Engine, rows: number, type: any) {
     const cols = Math.min(8, Math.floor(engine.ctx.canvas.width / 120));
     const color = type === "monolith" ? "#000000" : "#ff3333";
-    
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const e = engine.em.createEntity();
@@ -180,16 +191,5 @@ export class ActDirectorSystem implements System {
         engine.em.addComponent(e, new Collider(24, type === "monolith" ? 54 : 24, "INVADER"));
       }
     }
-  }
-
-  private spawnQuantumAnomaly(engine: Engine, type: "cube" | "echo") {
-    const anomaly = engine.em.createEntity();
-    const width = engine.ctx.canvas.width;
-    const color = type === "cube" ? `hsl(${Math.random() * 360}, 100%, 60%)` : "rgba(255,255,255,0.3)";
-    
-    engine.em.addComponent(anomaly, new Position(Math.random() * (width - 80) + 40, 80));
-    engine.em.addComponent(anomaly, new Velocity(Math.random() * 280 - 140, Math.random() * 350 + 250));
-    engine.em.addComponent(anomaly, new Renderable(color, type === "cube" ? 26 : 40, type));
-    engine.em.addComponent(anomaly, new Collider(type === "cube" ? 26 : 40, 26, "INVADER"));
   }
 }

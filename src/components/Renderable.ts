@@ -1,6 +1,6 @@
 import { Component } from "../core/ECS";
 
-export type RenderType = "cube" | "monolith" | "ship" | "predator" | "satellite" | "evapod" | "echo";
+export type RenderType = "cube" | "monolith" | "ship" | "predator" | "satellite" | "evapod" | "echo" | "xfighter" | "alien";
 
 export class Renderable implements Component {
   readonly _type = "Renderable";
