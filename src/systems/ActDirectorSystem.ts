@@ -11,14 +11,17 @@ export class ActDirectorSystem implements System {
   private warpSurvivalTimer = 20.0;
 
   update(entities: Entity[], engine: Engine, delta: number): void {
-    // SOTA SICHERUNGSSCHILD: Bei Einblendung einer Titelkarte friert der Director ein, um Race-Conditions im Frame-Loop zu verhindern!
     if (engine.state === "CINEMATIC") return;
-
     if (engine.state !== "PLAYING") return;
 
-    // TRANSFER-WELLEN-LOGIK BEI EINEM AKT- ODER SEKTORWECHSEL
+    // Synchronisiere den internen Timer an die Engine-Zelle zur Canvas-Projektion
+    if (engine.currentAct === 4) {
+      engine.warpTimerDisplay = this.warpSurvivalTimer;
+    }
+
+    // AKT- ODER LEVELPROGRESSION ERFASSEN UND INITIALISIEREN
     if (this.activeAct !== engine.currentAct || this.activeLevel !== engine.currentLevel) {
-      if (this.activeAct === engine.currentAct && engine.currentAct !== 4) {
+      if (this.activeAct === engine.currentAct && engine.currentAct !== 4 && engine.currentAct !== 5) {
         this.buildProgressiveWaveLayout(engine);
       } else {
         this.activeAct = engine.currentAct;
@@ -30,50 +33,66 @@ export class ActDirectorSystem implements System {
       return;
     }
 
-    // AKT IV: QUANTEN-WARP INTERAKTIVER AUSWEICH-RUNNER (LVL 1)
+    // AKT IV: SURVIVAL QUANTEN-STRUDEL RUNNER (LEVEL 10)
     if (engine.currentAct === 4) {
       this.warpSurvivalTimer -= delta;
+      
+      // Kontrollierter, ressourcenschonender Rhythmus im Tunnel-Warp
       if (Math.random() < 0.12) this.spawnHordeFormation(engine, 1, "cube");
-      if (Math.random() < 0.06) this.spawnHordeFormation(engine, 1, "echo");
+      if (Math.random() < 0.05) this.spawnHordeFormation(engine, 1, "echo");
 
       if (this.warpSurvivalTimer <= 0) {
         engine.currentAct = 5;
         engine.currentLevel = 1;
+        engine.logDebug("WARP SURVIVED // TRANSYNC INITIALIZED FOR THE FINAL APEX");
       }
       return;
     }
 
-    // DIAGNOSE DES AKTUELLEN FEINDVOLUMENS
+    // WELLEN-ZUSTANDSKONTROLLE ALLER AKTIVEN FEINDLICHEN INVASOREN
     const currentInvaders = entities.filter(e => 
       engine.em.hasComponent(e, "Collider") && 
       engine.em.getComponent<Collider>(e, "Collider")!.faction === "INVADER"
     );
 
     if (currentInvaders.length === 0) {
-      // SAUBERER ABSCHLUSS IN AKT V SEKTOR 4 (DAS GROSSE FINALE)
-      if (engine.currentAct === 5 && engine.currentLevel >= 4) {
+      // SAUBERES KAMPAGNEN-ENDE: Wenn Sektor 4 in Akt V geräumt ist, gewinnt der Spieler!
+      if (engine.currentAct === 5 && engine.currentLevel === 4) {
         engine.state = "GAMEWON";
-        engine.logDebug("EVOLUTION MATRIX COMPLETED // THE STAR CHILD TRANSMUTED");
+        engine.logDebug("EVOLUTION SYNC COMPLETE // STAR CHILD UNLOCKED");
         return;
       }
 
       engine.currentLevel += 1;
 
-      // Jedes Kapitel hat ab jetzt 4 Sektoren mit ansteigender Aggressivität
-      if (engine.currentLevel > 4 && engine.currentAct !== 5) {
+      // Jedes reguläre Kampfkapitel besitzt exakt 4 progressive Sektoren
+      if (engine.currentLevel > 4) {
         engine.currentAct += 1;
         engine.currentLevel = 1;
+      }
+
+      // CENTRALIZED INJECTION FIX: Generiert das nächste Wellenlayout SOFORT im selben Frame,
+      // um eine leere Gegner-Zählung im nächsten Takt und endlosen Level-Spam zu verhindern!
+      if (engine.currentAct !== 4) {
+        if (this.activeAct !== engine.currentAct) {
+          this.activeAct = engine.currentAct;
+          engine.checkpointAct = engine.currentAct;
+          engine.checkpointLevel = 1;
+          this.executeActTransition(engine);
+        } else {
+          this.buildProgressiveWaveLayout(engine);
+        }
+        this.activeLevel = engine.currentLevel;
       }
     }
   }
 
   private buildProgressiveWaveLayout(engine: Engine) {
     this.clearSimulationSpace(engine);
-    engine.logDebug(`GENERATING ENEMY PHALANX: ACT ${engine.currentAct} // SECTOR ${engine.currentLevel}`);
+    engine.logDebug(`CONSTRUCTING MATRIX: ACT ${engine.currentAct} // SECTOR ${engine.currentLevel}`);
 
     switch (engine.currentAct) {
       case 1:
-        // TUNING: Gegenwehr von Anfang an! Raubtiere dringen früher ein
         if (engine.currentLevel === 2) {
           this.spawnHordeFormation(engine, 1, "cube");
           this.spawnHordeFormation(engine, 1, "predator");
@@ -107,7 +126,6 @@ export class ActDirectorSystem implements System {
         }
         break;
       case 5:
-        // HÖCHSTER SCHWIERIGKEITSGRAD: Akt V zieht unbarmherzig an!
         if (engine.currentLevel === 2) {
           this.spawnMatrixFormation(engine, 2, "monolith");
           this.spawnHordeFormation(engine, 2, "alien");
@@ -116,7 +134,7 @@ export class ActDirectorSystem implements System {
           this.spawnHordeFormation(engine, 3, "xfighter");
           this.spawnHordeFormation(engine, 2, "alien");
         } else if (engine.currentLevel === 4) {
-          // DAS FINALE IN SEKTOR 4: Unerbittliches Kreuzfeuer aller Rassen!
+          // ULTRA FINALE: Gigantischer Kern-Verband blockiert das Weiterkommen
           this.spawnMatrixFormation(engine, 3, "monolith");
           this.spawnHordeFormation(engine, 2, "xfighter");
           this.spawnHordeFormation(engine, 2, "alien");
@@ -131,19 +149,19 @@ export class ActDirectorSystem implements System {
     switch (engine.currentAct) {
       case 1:
         engine.triggerCinematic("AKT I: DIE WIEGE DER MENSCHHEIT", [
-          "Morgendämmerung Ostafrikas. Ein Funke springt auf die Urhorde über.",
+          "Morgendämmerung Ostafrikas. Ein außerirdisches Monument erwacht.",
           "Weiche den prähistorischen Skiffs und schnellen Raubtieren aus!",
-          "Die Evolution bricht sich ihre Bahn.",
-          "KAMPAGNEN-BEREICH // SEKTOR 01 BIS 04"
+          "Das Bewusstsein mutiert. Die Evolution der Gewalt beginnt.",
+          "SEKTOR-WELLEN: 01 BIS 04 [I-TASTE FÜR DIAGNOSE]"
         ]);
         this.spawnHordeFormation(engine, 1, "cube");
         break;
 
       case 2:
         engine.triggerCinematic("AKT II: TMA-1 MONDKRATER", [
-          "Jahrmillionen später. Eine lunare Anomalie sendet einen Strahl aus.",
-          "Durchbrich das Abwehrnetzwerk aus Monolithen und Satelliten!",
-          "Der Kosmos ruft nach uns.",
+          "Jahrmillionen später. Eine lunare Anomalie sendet einen Impuls aus.",
+          "Durchbrich das Abwehrnetzwerk aus Monolithen und Plasma-Aliens!",
+          "Der interstellare Raum ruft nach uns.",
           "KAMPAGNEN-BEREICH // SEKTOR 05 BIS 08"
         ]);
         this.spawnMatrixFormation(engine, 3, "monolith");
@@ -151,9 +169,9 @@ export class ActDirectorSystem implements System {
 
       case 3:
         engine.triggerCinematic("AKT III: DIE JUPITER-MISSION", [
-          "An Bord der Discovery One. HAL 9000 kappt die Systeme.",
-          "Vernichte HALs Logikkerne und weiche den roten X-Fightern aus!",
-          "Lösche seine Kernspeicher, Dave.",
+          "An Bord der Discovery One. HAL 9000 übernimmt die totale Kontrolle.",
+          "TRENNE HALs LOGIKKERNE UND WEICHE DEN ROTEN X-FIGHTERN AUS!",
+          "Es gibt keine Fehlfunktionen in der 9000er Serie, Dave.",
           "KAMPAGNEN-BEREICH // SEKTOR 09 BIS 12"
         ]);
         this.spawnMatrixFormation(engine, 1, "cube");
@@ -161,18 +179,19 @@ export class ActDirectorSystem implements System {
 
       case 4:
         engine.triggerCinematic("AKT IV: BEYOND THE INFINITE", [
-          "Das Sternen-Tor bricht auf. Raum und Materie kollabieren.",
-          "HALTE DEM STRUDEL 20 SEKUNDEN STAND!",
-          "KAMPAGNEN-BEREICH // SEKTOR 13 [PURE SURVIVAL]"
+          "Das Sternen-Tor bricht auf. Raum, Zeit und Materie kollabieren.",
+          "ACHTUNG: KOSMISCHER STRUDEL AUSWEICH-MODUS!",
+          "HALTE DEM MATRIX-FEUER 20 SEKUNDEN STAND!",
+          "KAMPAGNEN-BEREICH // SEKTOR 13 [CHECKPOINT LOCK]"
         ]);
         break;
 
       case 5:
         engine.triggerCinematic("AKT V: DIE METAMORPHOSE (DAS FINALE)", [
-          "Am absoluten Nullpunkt von Raum, Zeit und Bewusstsein.",
-          "Der Monolith formiert die letzte, unerbittliche Elite-Phalanx.",
-          "KÄMPFE DICH DURCH SEKTOR 4 ZUM TRANSMUTATIONSSIEG!",
-          "DAS ULTRA-FINALE ENTFESSELT SICH JETZT!"
+          "Am absoluten Nullpunkt der Existenz manifestiert sich die Urform.",
+          "Der Monolith entfesselt das unerbittliche Elite-Kreuzfeuer.",
+          "VERNICHTE DIE LETZTE MATRIX IN SEKTOR 4 FÜR DEN SIEG!",
+          "DAS REINE HIGH-END FINALE STARTET JETZT!"
         ]);
         this.spawnMatrixFormation(engine, 2, "monolith");
         this.spawnHordeFormation(engine, 1, "alien");
@@ -186,10 +205,18 @@ export class ActDirectorSystem implements System {
     });
   }
 
+  private removeOldProjectiles(engine: Engine) {
+    engine.em.getAllEntities().forEach(e => {
+      if (engine.em.getComponent<Renderable>(e, "Renderable")?.type === "laser") {
+        engine.em.destroyEntity(e);
+      }
+    });
+  }
+
   private spawnHordeFormation(engine: Engine, rows: number, type: any) {
     const cols = Math.min(8, Math.floor(engine.ctx.canvas.width / 130));
     let color = "#5e4a3f";
-    if (type === "predator") color = "#d97706";
+    if (type === "predator") color = "#f97316";
     if (type === "satellite") color = "#cbd5e1";
     if (type === "evapod") color = "#eab308";
     if (type === "xfighter") color = "#e11d48";
