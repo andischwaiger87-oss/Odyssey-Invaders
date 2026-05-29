@@ -15,23 +15,25 @@ export class Engine {
   public score = 0;
   public lives = 3;
   public currentAct = 0;
-  public currentLevel = 1; 
+  public currentLevel = 1;
   public state: GameState = "START";
 
-  // Checkpoint Meilensteine
+  // Checkpoint-Archivierung
   public checkpointAct = 1;
   public checkpointLevel = 1;
 
+  // Ausgelesene DOM-Einstellungen
   public difficultyMode = "NOMINAL";
   public controlInterface = "MOUSE";
 
-  // SOTA Live-Telemetrie Console
+  // SOTA Live-Telemetrie & Diagnose
   public debugActive = false;
   private fps = 0;
   private frameCount = 0;
   private fpsTimer = 0;
-  public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // ENTRANT ENVELOPE STABLE";
+  public lastDebugLog = "DIAGNOSTIC SYSTEM ONLINE // RESOLVED SCOPE OVERLOAD";
 
+  // Countdown- & Outro-Timer
   public warpTimerDisplay = 15.0;
   public outroTimer = 0;
 
@@ -127,7 +129,7 @@ export class Engine {
         this.currentAct = act;
         this.currentLevel = lvl;
         this.checkpointAct = act;
-        this.checkpointLevel = 1; // SOTA FIX: Checkpoint-Sektor bleibt intern immer auf 1 fixiert
+        this.checkpointLevel = 1;
 
         this.em.getAllEntities().forEach(e => {
           if (!this.em.hasComponent(e, "Health")) this.em.destroyEntity(e);
@@ -197,7 +199,7 @@ export class Engine {
         }
         
         this.currentAct = this.checkpointAct;
-        this.currentLevel = 1; // SOTA REPARATUR: Zwingt die Welle beim Ableben immer zurück auf Sektor 1!
+        this.currentLevel = 1;
         this.lives = this.difficultyMode === "EASY" ? 5 : this.difficultyMode === "HARDCORE" ? 2 : 3;
         this.state = "PLAYING";
         
@@ -281,15 +283,18 @@ export class Engine {
 
     const entities = this.em.getAllEntities();
 
-    // SOTA KORREKTUR: Der Strudel zündet exakt erst ab Akt 5, Sektor 3 (Oder in der Abspann-Phase)
     if ((this.state === "PLAYING" || this.state === "CINEMATIC" || this.state === "OUTRO") && 
         (this.currentAct === 5 && (this.currentLevel >= 3 || this.state === "OUTRO"))) {
       this.renderStargateWarp(currentTime / 1000);
     }
 
     if (this.state === "PLAYING" || this.state === "CINEMATIC" || this.state === "OUTRO") {
-      for (const system of this.systems) {
-        system.update(entities, this, delta);
+      if (this.state !== "OUTRO") {
+        for (const system of this.systems) {
+          system.update(entities, this, delta);
+        }
+      } else {
+        this.renderCinematicOutro(delta);
       }
 
       if (this.state === "CINEMATIC") {
@@ -328,7 +333,8 @@ export class Engine {
     requestAnimationFrame(this.loop);
   }
 
-  private renderCinematicOutro(delta: number) {
+  // SOTA FIX: In Arrow-Function konvertiert, um Scope-Verlust zu bannen
+  private renderCinematicOutro = (delta: number): void => {
     this.outroTimer += delta;
     const cx = this.ctx.canvas.width / 2;
     const startY = this.ctx.canvas.height / 2 - (this.outroLines.length * 20) / 2;
@@ -367,7 +373,8 @@ export class Engine {
     }
   }
 
-  private drawBossHealthBar(curr: number, max: number) {
+  // SOTA FIX: In Arrow-Function konvertiert, um Scope-Verlust zu bannen
+  private drawBossHealthBar = (curr: number, max: number): void => {
     const w = 400; const h = 6;
     const x = this.ctx.canvas.width / 2 - w / 2; const y = 100;
     const ratio = Math.max(0, curr / max);
@@ -379,7 +386,8 @@ export class Engine {
     this.ctx.restore();
   }
 
-  private syncDOMHUD() {
+  // SOTA FIX: In Arrow-Function konvertiert, um Scope-Verlust zu bannen
+  private syncDOMHUD = (): void => {
     const scoreEl = document.getElementById("ui-score");
     const actEl = document.getElementById("ui-act");
     const livesEl = document.getElementById("ui-lives");
@@ -398,7 +406,8 @@ export class Engine {
     }
   }
 
-  private renderDebugUI(entityCount: number) {
+  // SOTA FIX: In Arrow-Function konvertiert, um Scope-Verlust zu bannen
+  private renderDebugUI = (entityCount: number): void => {
     let panel = document.getElementById("debug-panel");
     if (!panel) {
       panel = document.createElement("div");
@@ -417,7 +426,23 @@ export class Engine {
     `;
   }
 
-  private handleEndState(won: boolean) {
+  // SOTA FIX: In Arrow-Function konvertiert, um Scope-Verlust zu bannen
+  private renderStargateWarp = (time: number): void => {
+    const cx = this.ctx.canvas.width / 2;
+    const cy = this.ctx.canvas.height / 2;
+    const maxRadius = Math.max(cx, cy);
+    for (let i = 0; i < 40; i++) {
+      const r = ((i * 22 + time * 140) % maxRadius);
+      this.ctx.strokeStyle = `hsla(${(i * 12 + time * 60) % 360}, 100%, 50%, ${1 - r / maxRadius})`;
+      this.ctx.lineWidth = 3;
+      this.ctx.beginPath();
+      this.ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      this.ctx.stroke();
+    }
+  }
+
+  // SOTA FIX: In Arrow-Function konvertiert, um Scope-Verlust zu bannen
+  private handleEndState = (won: boolean): void => {
     const hud = document.getElementById("hud");
     const overlay = document.getElementById("screen-overlay");
     const title = document.getElementById("overlay-title");
