@@ -29,8 +29,21 @@ export class InvaderAiSystem implements System {
     const playerPos = playerEntity ? engine.em.getComponent<Position>(playerEntity, "Position") : null;
 
     let edgeHit = false;
+    
+    // --- SOTA AGGRESSIONS-MATRIX FÜR DEN HARDCORE MODUS ---
     let baseSpeed = 40 + engine.currentLevel * 25;
-    let fireRateMultiplier = engine.difficultyMode === "EASY" ? 1.5 : engine.difficultyMode === "HARDCORE" ? 0.5 : 1.0;
+    let shootChanceMultiplier = 1.0;
+    let fireRateMultiplier = 1.0;
+
+    if (engine.difficultyMode === "HARDCORE") {
+      baseSpeed *= 1.5;            // 50% schnellere Formationsbewegungen und Seitendrifts
+      shootChanceMultiplier = 2.2; // Mehr als verdoppelte Wahrscheinlichkeit für feindliche Salven
+      fireRateMultiplier = 0.45;   // Drastisch verkürzte globale Abklingzeit (Feuer-Spam)
+    } else if (engine.difficultyMode === "EASY") {
+      baseSpeed *= 0.8;
+      shootChanceMultiplier = 0.5;
+      fireRateMultiplier = 1.6;
+    }
 
     for (const invader of invaders) {
       const pos = engine.em.getComponent<Position>(invader, "Position")!;
@@ -39,7 +52,8 @@ export class InvaderAiSystem implements System {
 
       switch (render.type) {
         case "hal9000_boss":
-          pos.x += this.direction * 150 * delta;
+          // Der Endgegner gleitet im Hardcore-Modus rasant über die Deckenmatrix
+          pos.x += this.direction * (engine.difficultyMode === "HARDCORE" ? 220 : 140) * delta;
           if (pos.x > engine.ctx.canvas.width - 240) this.direction = -1;
           if (pos.x < 40) this.direction = 1;
 
@@ -49,29 +63,29 @@ export class InvaderAiSystem implements System {
           if (this.globalShootCooldown <= 0) {
             const cx = pos.x + 100;
             
-            // Hauptsalve
             this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#ff0055", 0);
             this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#ff0055", -120);
             this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#ff0055", 120);
             
             if (playerPos) {
-              this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#fef08a", (playerPos.x - cx) * 0.8);
+              this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#fef08a", (playerPos.x - cx) * 0.85);
             }
 
-            // SOTA BOSS RAGE MODUS VERSTÄRKT: Unter 50% HP bricht ein chaotisches 5-Wege-Kreuzfeuer aus!
-            if (ratio < 0.5) {
-              this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#a855f7", -240);
-              this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#a855f7", 240);
+            if (ratio < 0.5 || engine.difficultyMode === "HARDCORE") {
+              // Im Hardcore-Modus feuert HAL das 5-Wege-Sperrfeuer von ANFANG AN ab!
+              this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#a855f7", -250);
+              this.fireEnemyCapsuleLaser(engine, cx, pos.y + 60, "#a855f7", 250);
             }
 
-            this.globalShootCooldown = (0.28 * ratio + 0.12) * fireRateMultiplier;
+            this.globalShootCooldown = (0.24 * ratio + 0.10) * fireRateMultiplier;
           }
           break;
 
         case "cube":
           pos.x += Math.sin(this.waveTimer * 2.5 + pos.y) * 45 * delta;
           pos.y += (15 + engine.currentLevel * 2) * delta;
-          if (this.globalShootCooldown <= 0 && Math.random() < 0.02) {
+          
+          if (this.globalShootCooldown <= 0 && Math.random() < 0.02 * shootChanceMultiplier) {
             this.fireEnemyCapsuleLaser(engine, pos.x + 10, pos.y + 20, "#ff3399", 0);
             this.globalShootCooldown = 0.45 * fireRateMultiplier;
           }
@@ -80,7 +94,8 @@ export class InvaderAiSystem implements System {
         case "predator":
           pos.x += Math.cos(this.waveTimer * 5) * 110 * delta;
           pos.y += (35 + engine.currentLevel * 3) * delta;
-          if (this.globalShootCooldown <= 0 && Math.random() < 0.03) {
+          
+          if (this.globalShootCooldown <= 0 && Math.random() < 0.03 * shootChanceMultiplier) {
             this.fireEnemyCapsuleLaser(engine, pos.x + 12, pos.y + 20, "#ff6600", 0);
             this.globalShootCooldown = 0.4 * fireRateMultiplier;
           }
@@ -88,11 +103,12 @@ export class InvaderAiSystem implements System {
 
         case "xfighter":
           if (vel) {
-            pos.x += vel.vx * delta;
+            // Die Drift-Geschwindigkeit passt sich der Matrix an
+            pos.x += vel.vx * (engine.difficultyMode === "HARDCORE" ? 1.4 : 1.0) * delta;
             pos.y += Math.sin(this.waveTimer * 4 + pos.x) * 45 * delta;
             if (pos.x < 25 || pos.x > engine.ctx.canvas.width - 50) vel.vx *= -1;
           }
-          if (this.globalShootCooldown <= 0 && Math.random() < 0.06) {
+          if (this.globalShootCooldown <= 0 && Math.random() < 0.06 * shootChanceMultiplier) {
             this.fireEnemyCapsuleLaser(engine, pos.x + 14, pos.y + 24, "#ff0033", 0);
             this.globalShootCooldown = 0.28 * fireRateMultiplier;
           }
@@ -100,9 +116,12 @@ export class InvaderAiSystem implements System {
 
         case "alien":
           pos.x += Math.sin(this.waveTimer * 2 + pos.y) * 70 * delta;
-          if (Math.random() < 0.007) pos.x += (Math.random() - 0.5) * 90;
-          if (this.globalShootCooldown <= 0 && playerPos && Math.random() < 0.04) {
-            this.fireEnemyCapsuleLaser(engine, pos.x + 14, pos.y + 24, "#d000ff", (playerPos.x - pos.x) * 0.7);
+          if (Math.random() < (engine.difficultyMode === "HARDCORE" ? 0.02 : 0.007)) {
+            pos.x += (Math.random() - 0.5) * 110; // Aggressivere Glitch-Teleportation
+          }
+          if (this.globalShootCooldown <= 0 && playerPos && Math.random() < 0.04 * shootChanceMultiplier) {
+            const trackVector = (playerPos.x - pos.x) * 0.75;
+            this.fireEnemyCapsuleLaser(engine, pos.x + 14, pos.y + 24, "#d000ff", trackVector);
             this.globalShootCooldown = 0.32 * fireRateMultiplier;
           }
           break;
@@ -114,17 +133,20 @@ export class InvaderAiSystem implements System {
 
         case "satellite":
           pos.x += Math.sin(this.waveTimer * 1.5 + pos.y) * 140 * delta;
-          if (this.globalShootCooldown <= 0 && Math.random() < 0.03) {
-            this.fireEnemyCapsuleLaser(engine, pos.x + 12, pos.y + 20, "#cbd5e1", 0);
-            this.globalShootCooldown = 0.4 * fireRateMultiplier;
-          }
           break;
 
         case "evapod":
           if (vel) {
-            pos.x += vel.vx * delta;
+            pos.x += vel.vx * (engine.difficultyMode === "HARDCORE" ? 1.5 : 1.0) * delta;
             pos.y += Math.sin(this.waveTimer * 4 + pos.x) * 20 * delta;
             if (pos.x < 20 || pos.x > engine.ctx.canvas.width - 50) vel.vx *= -1;
+          }
+          break;
+
+        case "echo":
+          if (vel) {
+            pos.x += vel.vx * (engine.difficultyMode === "HARDCORE" ? 1.6 : 1.0) * delta;
+            pos.y += vel.vy * (engine.difficultyMode === "HARDCORE" ? 1.6 : 1.0) * delta;
           }
           break;
       }
@@ -148,13 +170,29 @@ export class InvaderAiSystem implements System {
       }
     }
 
+    // Standardfeuer der monolithischen Wand
+    if (this.globalShootCooldown <= 0 && Math.random() < 0.05 * shootChanceMultiplier) {
+      const monos = invaders.filter(e => engine.em.getComponent<Renderable>(e, "Renderable")!.type === "monolith");
+      if (monos.length > 0) {
+        const target = monos[Math.floor(Math.random() * monos.length)];
+        const p = engine.em.getComponent<Position>(target, "Position")!;
+        this.fireEnemyCapsuleLaser(engine, p.x + 10, p.y + 45, "#ff3333", 0);
+        this.globalShootCooldown = 0.35 * fireRateMultiplier;
+      }
+    }
+
     this.moveDownPending = false;
   }
 
   private fireEnemyCapsuleLaser(engine: Engine, x: number, y: number, color: string, vx: number): void {
     const laser = engine.em.createEntity();
     engine.em.addComponent(laser, new Position(x, y));
-    engine.em.addComponent(laser, new Velocity(vx, 420 + engine.currentLevel * 10));
+    
+    // SOTA OPTIMIERUNG: Projektile fliegen im Hardcore-Modus unbarmherzig schneller herab (+150px/s)
+    let speed = 420 + engine.currentLevel * 10;
+    if (engine.difficultyMode === "HARDCORE") speed += 150;
+
+    engine.em.addComponent(laser, new Velocity(vx, speed));
     engine.em.addComponent(laser, new Renderable(color, 16, "laser"));
     engine.em.addComponent(laser, new Collider(5, 16, "INVADER_LASER"));
   }
