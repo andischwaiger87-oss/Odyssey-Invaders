@@ -1,0 +1,12 @@
+{
+  "name": "Odyssey Invaders – Remastered",
+  "short_name": "Odyssey Invaders",
+  "description": "Arcade-Shooter in fünf Akten und 20 Sektoren.",
+  "lang": "de",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#020308",
+  "theme_color": "#020308",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

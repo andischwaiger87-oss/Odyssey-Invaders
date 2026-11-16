@@ -2,185 +2,156 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Odyssee 2026 — SOTA Master Edition</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Syncopate:wght@400;700&display=swap" rel="stylesheet">
-
-  <style>
-    .crt-overlay::after {
-      content: " ";
-      display: block;
-      position: absolute;
-      top: 0; left: 0; bottom: 0; right: 0;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.18) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 255, 0.01), rgba(0, 0, 255, 0.02));
-      z-index: 50;
-      background-size: 100% 4px, 6px 100%;
-      pointer-events: none;
-    }
-    body {
-      user-select: none;
-      touch-action: none;
-    }
-    .flash-active {
-      animation: damagePulse 0.4s ease-out;
-    }
-    @keyframes damagePulse {
-      0% { box-shadow: inset 0 0 100px rgba(255, 0, 0, 0.85); }
-      100% { box-shadow: inset 0 0 0px rgba(255, 0, 0, 0); }
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Odyssey Invaders – Remastered</title>
+  <meta name="description" content="Arcade-Shooter in fünf Akten: Steuere die NOSTOS durch 20 Sektoren bis zum Kern der abtrünnigen Bord-KI. Läuft direkt im Browser, ohne Installation.">
+  <meta name="theme-color" content="#020308">
+  <meta property="og:title" content="Odyssey Invaders – Remastered">
+  <meta property="og:description" content="Arcade-Shooter in fünf Akten und 20 Sektoren. Direkt im Browser spielbar.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="de_AT">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="manifest" href="./manifest.webmanifest">
 </head>
-<body class="bg-[#010103] text-white font-['Orbitron'] overflow-hidden h-screen w-screen relative crt-overlay select-none">
+<body class="crt">
+  <canvas id="game" aria-label="Spielfeld"></canvas>
+  <div id="fx-vignette" aria-hidden="true"></div>
+  <div id="fx-crt" aria-hidden="true"></div>
+  <div id="fx-flash" aria-hidden="true"></div>
 
-  <div id="damage-flash" class="absolute inset-0 z-40 pointer-events-none transition-all duration-300"></div>
+  <header id="topbar">
+    <span>Odyssey Invaders <b>// Remastered</b></span>
+    <span id="ai-status">POLYPHEM // BORDSYSTEM NOMINAL</span>
+  </header>
 
-  <div class="absolute top-0 left-0 w-full h-[6vh] bg-black z-30 border-b border-white/5 flex items-center px-6 justify-between text-[10px] tracking-[0.3em] text-gray-500 uppercase">
-    <div>System: Space-Invaders // Odyssey_v2</div>
-    <div class="text-[#ff3333] font-bold animate-pulse" id="ui-lens-status">HAL 9000 // CORE SIMULATION ENGINE</div>
-  </div>
-  
-  <div class="absolute bottom-0 left-0 w-full h-[6vh] bg-black z-30 border-t border-white/5 flex items-center px-6 justify-between text-[10px] text-gray-500 tracking-widest">
-    <div id="ui-controls-hint">STEUERUNG: MAUS / TOUCH INTERFACE</div>
-    <div>AUTOFIRING_SYSTEM // ACTIVE</div>
-  </div>
-
-  <div id="hud" class="absolute top-[8vh] left-0 w-full px-8 z-20 flex justify-between items-start pointer-events-none transition-opacity duration-500 opacity-0">
-    <div class="space-y-1">
-      <div class="text-xl font-black tracking-wider text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" id="ui-score">SCORE // 000000</div>
-      <div class="text-[11px] text-gray-400 uppercase tracking-[0.2em]" id="ui-act">MISSION: STANDBY</div>
+  <div id="hud" aria-live="off">
+    <div class="hud-l">
+      <div id="hud-score">000000</div>
+      <div id="hud-mult">KETTE ×1</div>
+      <div id="hud-sector">AKT I · SEKTOR 1</div>
     </div>
-    
-    <div class="text-right space-y-1">
-      <div class="text-[10px] tracking-widest text-gray-400 uppercase">Discovery Structural Integrity</div>
-      <div class="flex gap-1.5 justify-end" id="ui-lives"></div>
+    <div class="hud-c" id="hud-power">
+      <div class="pw" data-k="TRI"><span>DREIFACH</span><i></i></div>
+      <div class="pw" data-k="PIERCE"><span>DURCHSCHLAG</span><i></i></div>
+      <div class="pw" data-k="SHIELD"><span>SCHILD</span><i></i></div>
+    </div>
+    <div class="hud-r">
+      <div class="hud-label">Hüllenintegrität</div>
+      <div id="hud-lives"></div>
+      <div id="hud-best">BEST 000000</div>
     </div>
   </div>
 
-  <div id="story-card" class="absolute inset-0 z-30 flex flex-col justify-center items-center bg-black px-8 transition-all duration-700 pointer-events-none opacity-0">
-    <h1 id="story-title" class="font-['Syncopate'] text-lg md:text-2xl font-bold tracking-[0.4em] text-center text-white mb-8 uppercase border-b border-white/10 pb-4 w-full max-w-xl"></h1>
-    <div id="story-text" class="text-xs text-gray-400 max-w-xl text-center leading-relaxed space-y-4 tracking-widest uppercase"></div>
-    <div class="absolute bottom-[6vh] left-0 h-0.5 bg-[#ff3333] transition-all duration-100 ease-linear" id="story-progress"></div>
-  </div>
+  <div id="boss-bar"><label id="boss-label">POLYPHEM</label><div class="track"><i id="boss-fill"></i></div></div>
+  <div id="banner"><strong id="banner-title"></strong><span id="banner-sub"></span></div>
+  <button id="btn-pause" type="button" aria-label="Pause">II</button>
 
-  <div id="settings-modal" class="hidden absolute inset-0 z-50 flex flex-col justify-center items-center bg-black/95 px-4 text-center backdrop-blur-md transition-all duration-300">
-    <div class="w-full max-w-md bg-[#09090b] border border-white/10 p-6 rounded text-left space-y-4 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
-      <div class="text-[#ff3333] font-bold tracking-[0.25em] uppercase border-b border-white/5 pb-2 text-xs flex justify-between items-center">
-        <span>SIMULATIONSPARAMETER</span>
-        <span class="text-[9px] text-gray-500 font-normal">SYS_CONFIG_A1</span>
+  <section id="title" class="screen is-open" aria-labelledby="title-h">
+    <svg class="emblem" viewBox="0 0 120 120" aria-hidden="true">
+      <ellipse cx="60" cy="60" rx="54" ry="20" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".45" transform="rotate(-18 60 60)"/>
+      <circle cx="60" cy="60" r="30" fill="#07080c" stroke="currentColor" stroke-width="2"/>
+      <path d="M60 38 L68 60 L60 82 L52 60 Z" fill="currentColor"/>
+      <circle cx="111" cy="43" r="3" fill="#7fe9ff"/>
+    </svg>
+    <h1 id="title-h">Odyssey Invaders</h1>
+    <p class="sub"><span>Remastered</span></p>
+    <p class="tagline">Fünf Akte. Zwanzig Sektoren. Ein Auge, das dich nicht gehen lässt.</p>
+    <div class="menu">
+      <button id="btn-start" class="btn primary" type="button">Mission starten</button>
+      <div class="acts" id="act-select" role="group" aria-label="Einstieg ab Akt">
+        <span>Einstieg ab Akt</span>
+        <button type="button" data-act="1">I</button>
+        <button type="button" data-act="2">II</button>
+        <button type="button" data-act="3">III</button>
+        <button type="button" data-act="4">IV</button>
+        <button type="button" data-act="5">V</button>
       </div>
-      
-      <div class="flex flex-col space-y-1">
-        <label for="cfg-difficulty" class="tracking-wider text-[10px] text-gray-400 uppercase">Schwierigkeitsgrad:</label>
-        <select id="cfg-difficulty" class="bg-black border border-white/15 text-white px-3 py-2 rounded text-xs outline-none focus:border-[#ff3333] cursor-pointer tracking-wide">
-          <option value="EASY">EINFACH // REPARATUR-SUPPORT (5 LEBEN)</option>
-          <option value="NOMINAL" selected>CINE-NOMINAL // KUBRICK SPECTRUM (3 LEBEN)</option>
-          <option value="HARDCORE">HARDCORE // HAL-SABOTAGE (2 LEBEN)</option>
+      <button id="btn-settings" class="btn" type="button">Einstellungen</button>
+    </div>
+    <p class="best" id="title-best"></p>
+    <p class="keys">Maus oder Finger: Schiff führen · Tasten: A / D oder ← → · P Pause · M Ton · F Vollbild</p>
+    <p class="fine">Hinweis: Das Spiel enthält schnelle Lichteffekte. Unter Einstellungen lassen sie sich reduzieren.<br>
+      Ein unabhängiges Arcade-Projekt von <a href="https://apps.mosaik-design.at/" target="_blank" rel="noopener">mosaik</a>. Alle Namen, Figuren und Grafiken sind eigene Entwürfe.</p>
+  </section>
+
+  <section id="story" class="screen" aria-live="polite">
+    <p class="story-act" id="story-act"></p>
+    <h2 id="story-title"></h2>
+    <div id="story-text"></div>
+    <p class="skip">Klick oder Leertaste: überspringen</p>
+    <i id="story-progress"></i>
+  </section>
+
+  <section id="pause" class="screen">
+    <h2>Pause</h2>
+    <div class="menu">
+      <button id="btn-resume" class="btn primary" type="button">Weiter</button>
+      <button id="btn-pause-settings" class="btn" type="button">Einstellungen</button>
+      <button id="btn-quit" class="btn" type="button">Zum Titel</button>
+    </div>
+  </section>
+
+  <section id="end" class="screen">
+    <h2 id="end-title"></h2>
+    <p id="end-text"></p>
+    <dl id="end-stats"></dl>
+    <div class="menu">
+      <button id="btn-retry" class="btn primary" type="button">Neustart</button>
+      <button id="btn-end-title" class="btn" type="button">Zum Titel</button>
+    </div>
+  </section>
+
+  <div id="settings" class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-h">
+    <form class="panel" onsubmit="return false">
+      <h2 id="settings-h">Einstellungen</h2>
+      <label class="row"><span>Schwierigkeit</span>
+        <select id="cfg-difficulty">
+          <option value="EASY">Einfach · 5 Leben</option>
+          <option value="NOMINAL">Nominal · 3 Leben</option>
+          <option value="HARDCORE">Hardcore · 2 Leben</option>
         </select>
-      </div>
-
-      <div class="flex flex-col space-y-1">
-        <label for="cfg-controls" class="tracking-wider text-[10px] text-gray-400 uppercase">Steuerungsinterface:</label>
-        <select id="cfg-controls" class="bg-black border border-white/15 text-white px-3 py-2 rounded text-xs outline-none focus:border-[#ff3333] cursor-pointer tracking-wide">
-          <option value="MOUSE" selected>DIGITAL-GLIDE (MAUS / TOUCH-TRACKING)</option>
-          <option value="KEYBOARD">VEKTOR-TASTEN (A-D / PFEILTASTEN)</option>
+      </label>
+      <p class="note" id="cfg-difficulty-note">Die Schwierigkeit lässt sich nur vor dem Start ändern.</p>
+      <label class="row"><span>Steuerung</span>
+        <select id="cfg-controls">
+          <option value="AUTO">Automatisch (Maus, Touch und Tasten)</option>
+          <option value="POINTER">Nur Maus / Touch</option>
+          <option value="KEYS">Nur Tasten (A / D, Pfeile)</option>
         </select>
-      </div>
+      </label>
+      <label class="row"><span>Effekte <output id="cfg-sfx-val">70 %</output></span>
+        <input type="range" id="cfg-sfx" min="0" max="100" value="70">
+      </label>
+      <label class="row"><span>Musik <output id="cfg-music-val">50 %</output></span>
+        <input type="range" id="cfg-music" min="0" max="100" value="50">
+      </label>
+      <label class="check"><input type="checkbox" id="cfg-crt" checked><span>Bildröhren-Filter</span></label>
+      <label class="check"><input type="checkbox" id="cfg-shake" checked><span>Bildschirm-Erschütterung</span></label>
+      <label class="check"><input type="checkbox" id="cfg-reduced"><span>Lichteffekte reduzieren</span></label>
 
-      <div class="flex justify-between items-center bg-black/40 p-2.5 border border-white/5 rounded">
-        <label for="cfg-crt" class="tracking-wider text-[10px] text-gray-400 uppercase cursor-pointer">CRT Scanline Filter:</label>
-        <input type="checkbox" id="cfg-crt" checked class="accent-[#ff3333] w-4 h-4 cursor-pointer">
-      </div>
-
-      <div class="space-y-1">
-        <div class="flex justify-between text-[10px]">
-          <label for="cfg-volume" class="tracking-wider text-gray-400 uppercase">Oszillatoren-Lautstärke:</label>
-          <span id="cfg-volume-val" class="text-[#ff3333] font-bold">60%</span>
+      <fieldset class="warp">
+        <legend>Sektor-Warp</legend>
+        <div class="warp-row">
+          <input type="password" id="cfg-warp-pw" placeholder="Zugangscode" autocomplete="off" aria-label="Zugangscode">
+          <button id="btn-warp-unlock" class="btn small" type="button">Entsperren</button>
         </div>
-        <input type="range" id="cfg-volume" min="0" max="100" value="60" class="w-full accent-[#ff3333] bg-[#222] h-1 rounded cursor-pointer">
-      </div>
-
-      <div class="border-t border-white/10 pt-3 flex flex-col space-y-2">
-        <label class="tracking-wider text-[10px] text-gray-400 uppercase">LEVEL-WARP (VERSCHLÜSSELT):</label>
-        <div class="flex gap-2">
-          <input type="password" id="cfg-warp-pw" placeholder="SCHLÜSSEL-CODE INJEKTION" class="w-full bg-black border border-white/15 text-white px-3 py-2 rounded text-xs outline-none focus:border-[#ff3333] tracking-widest">
-          <button id="unlock-warp-btn" class="bg-transparent border border-gray-600 text-gray-400 hover:border-[#ff3333] hover:text-[#ff3333] px-3 rounded text-[9px] font-bold uppercase tracking-widest transition-colors duration-200">
-            DEKR
-          </button>
+        <p class="note" id="warp-status">Gesperrt.</p>
+        <div class="warp-row" id="warp-go" hidden>
+          <select id="cfg-warp-select" aria-label="Zielsektor"></select>
+          <button id="btn-warp" class="btn small" type="button">Springen</button>
         </div>
-        <div id="warp-status-text" class="text-[9px] text-gray-500 uppercase tracking-wider">Status: Gesperrt durch Krypto-Schild</div>
-        
-        <div id="warp-level-container" class="hidden flex flex-col space-y-1 pt-1">
-          <label for="cfg-warp-select" class="text-[9px] text-emerald-400 uppercase tracking-widest font-bold">Zielkoordinaten:</label>
-          <select id="cfg-warp-select" class="bg-black border border-emerald-500/30 text-emerald-400 px-3 py-2 rounded text-xs outline-none focus:border-emerald-400 cursor-pointer">
-            <option value="1_1">AKT 1 - SEKTOR 1 (START)</option>
-            <option value="1_2">AKT 1 - SEKTOR 2 (HORDE)</option>
-            <option value="1_3">AKT 1 - SEKTOR 3 (BESTIEN)</option>
-            <option value="1_4">AKT 1 - SEKTOR 4 (PHALANX)</option>
-            <option value="2_1">AKT 2 - SEKTOR 1 (MONOLITH MATRIX)</option>
-            <option value="2_2">AKT 2 - SEKTOR 2 (LUNAR-NETZ)</option>
-            <option value="2_3">AKT 2 - SEKTOR 3 (PLASMA-ALIENS)</option>
-            <option value="2_4">AKT 2 - SEKTOR 4 (ELITE-WELLEN)</option>
-            <option value="3_1">AKT 3 - SEKTOR 1 (HAL-9000 REVOLTE)</option>
-            <option value="3_2">AKT 3 - SEKTOR 2 (X-FIGHTER JÄGER)</option>
-            <option value="3_3">AKT 3 - SEKTOR 3 (LOGIK-SABOTAGE)</option>
-            <option value="3_4">AKT 3 - SEKTOR 4 (SYSTEM-CRASH)</option>
-            <option value="4_1">AKT 4 - SEKTOR 1 (DAS STERNENTOR 01)</option>
-            <option value="4_2">AKT 4 - SEKTOR 2 (DAS STERNENTOR 02)</option>
-            <option value="4_3">AKT 4 - SEKTOR 3 (DAS STERNENTOR 03)</option>
-            <option value="4_4">AKT 4 - SEKTOR 4 (DAS STERNENTOR 04)</option>
-            <option value="5_1">AKT 5 - SEKTOR 1 (KOSMISCHE ANOMALIE)</option>
-            <option value="5_2">AKT 5 - SEKTOR 2 (ELITE-KREUZFEUER)</option>
-            <option value="5_3">AKT 5 - SEKTOR 3 (WARP-SPIRALEN PHASING)</option>
-            <option value="5_4">AKT 5 - SEKTOR 4 (HAL-9000 MAINBOSSKAMPF)</option>
-          </select>
-        </div>
-      </div>
+      </fieldset>
 
-      <button id="close-settings-btn" class="w-full mt-2 bg-[#ff3333] text-black font-bold text-xs uppercase tracking-[0.2em] py-3 transition-all duration-200 active:scale-95 hover:bg-[#ff5555]">
-        Parameter Bestätigen
-      </button>
-    </div>
+      <button id="btn-settings-close" class="btn primary" type="button">Übernehmen</button>
+    </form>
   </div>
 
-  <div id="screen-overlay" class="absolute inset-0 z-40 flex flex-col justify-center items-center bg-[#010103] px-4 text-center">
-    
-    <div class="mb-10 relative flex items-center justify-center">
-      <div class="w-20 h-20 rounded-full bg-black border-4 border-zinc-800 flex items-center justify-center shadow-[0_0_50px_rgba(255,51,51,0.3)]">
-        <div class="w-9 h-9 rounded-full bg-[#ff3333] shadow-[0_0_25px_#ff0000] flex items-center justify-center animate-pulse">
-          <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
-        </div>
-      </div>
-    </div>
-    
-    <h1 id="overlay-title" class="font-['Syncopate'] text-2xl md:text-4xl font-bold tracking-[0.35em] text-white mb-3 uppercase leading-tight">
-      2001: A Space Odyssey
-    </h1>
-    
-    <div class="flex items-center justify-center gap-4 w-full max-w-md mb-12">
-      <div class="h-[1px] bg-zinc-800 flex-grow"></div>
-      <p class="text-[10px] md:text-xs font-black tracking-[0.4em] text-[#ff3333] uppercase">
-        Master Edition
-      </p>
-      <div class="h-[1px] bg-zinc-800 flex-grow"></div>
-    </div>
-    
-    <div class="flex flex-col gap-4 items-center w-full max-w-xs">
-      <button id="start-btn" class="w-full bg-transparent border border-[#ff3333] text-[#ff3333] hover:bg-[#ff3333] hover:text-black font-bold text-xs uppercase tracking-[0.3em] py-4.5 transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(255,51,51,0.15)]">
-        Evolution Starten
-      </button>
-      
-      <button id="open-settings-btn" class="text-[9px] text-gray-500 hover:text-white tracking-[0.25em] uppercase border border-white/5 hover:border-white/15 px-4 py-2 transition-all duration-300 rounded">
-        System-Parameter [⚙]
-      </button>
-    </div>
-  </div>
+  <footer id="bottombar">
+    <span id="hint">Steuerung: Maus, Touch oder Tasten</span>
+    <span>Autofeuer aktiv</span>
+  </footer>
 
-  <canvas id="game-canvas" class="absolute inset-0 z-0 block w-full h-full"></canvas>
-
+  <pre id="debug" hidden></pre>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

@@ -1,17 +1,17 @@
 {
-  "name": "odyssee-invaders-2026",
+  "name": "odyssey-invaders",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },
-  "dependencies": {},
   "devDependencies": {
+    "@fontsource/chakra-petch": "^5.0.0",
+    "@fontsource/michroma": "^5.0.0",
     "typescript": "^5.4.0",
-    "vite": "^6.0.0",
-    "tailwindcss": "^4.0.0"
+    "vite": "^6.0.0"
   }
 }
