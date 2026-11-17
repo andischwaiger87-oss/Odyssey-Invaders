@@ -16,7 +16,9 @@ const MUSIC: ActMusic[] = [
   { root: 45, scale: [0, 2, 3, 7, 8], bpm: 92, chords: [0, 2, 0, 4], arp: "triangle", pulse: false, seed: 7 },   // II
   { root: 41, scale: [0, 1, 3, 6, 7], bpm: 104, chords: [0, 1, 0, 3], arp: "square", pulse: true, seed: 19 },    // III
   { root: 47, scale: [0, 2, 4, 6, 9], bpm: 124, chords: [0, 2, 3, 4], arp: "sawtooth", pulse: true, seed: 29 },  // IV
-  { root: 40, scale: [0, 1, 4, 5, 7], bpm: 132, chords: [0, 1, 3, 1], arp: "square", pulse: true, seed: 41 },    // V
+  { root: 40, scale: [0, 1, 4, 5, 7], bpm: 132, chords: [0, 1, 3, 1], arp: "square", pulse: true, seed: 41 },    // Finale
+  { root: 42, scale: [0, 3, 5, 7, 10], bpm: 96, chords: [0, 2, 3, 0], arp: "triangle", pulse: true, seed: 53 },  // Gürtel
+  { root: 50, scale: [0, 2, 7, 9, 11], bpm: 66, chords: [0, 4, 2, 3], arp: "sine", pulse: false, seed: 67 },     // Stille
 ];
 
 const mtof = (m: number): number => 440 * Math.pow(2, (m - 69) / 12);

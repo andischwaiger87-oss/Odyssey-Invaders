@@ -164,6 +164,90 @@ function drawEcho(g: Ctx, res: number): void {
   g.fillStyle = "#fff"; g.fillRect(-1, -1, 2, 2);
 }
 
+function rockPath(g: Ctx, r: number, seed: number): void {
+  let s = seed;
+  const rnd = (): number => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  g.beginPath();
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    const rr = r * (0.72 + rnd() * 0.32);
+    g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr * 0.9);
+  }
+  g.closePath();
+}
+
+function drawAsteroid(g: Ctx, res: number): void {
+  const col = ENEMY_COLOR.asteroid;
+  rockPath(g, 18, 7);
+  const grad = g.createRadialGradient(-6, -7, 2, 0, 0, 20);
+  grad.addColorStop(0, "#6b5a48"); grad.addColorStop(1, "#1c1611");
+  g.fillStyle = grad; g.fill();
+  glowOn(g, col, 6, res); g.strokeStyle = col; g.lineWidth = 1.6; g.stroke(); glowOff(g);
+  g.fillStyle = "rgba(0,0,0,0.35)"; g.strokeStyle = "rgba(216,189,156,0.35)"; g.lineWidth = 0.8;
+  for (const [x, y, r] of [[-5, -3, 4], [6, 4, 3], [2, -9, 2.2], [-8, 7, 2.4]]) {
+    g.beginPath(); g.ellipse(x, y, r, r * 0.75, 0.3, 0, 7); g.fill(); g.stroke();
+  }
+}
+
+function drawShard(g: Ctx, res: number): void {
+  rockPath(g, 8, 19);
+  g.fillStyle = "#3a2f25"; g.fill();
+  glowOn(g, ENEMY_COLOR.shard, 6, res); g.strokeStyle = ENEMY_COLOR.shard; g.lineWidth = 1.3; g.stroke(); glowOff(g);
+}
+
+function drawMine(g: Ctx, res: number): void {
+  const col = ENEMY_COLOR.mine;
+  g.strokeStyle = "#8a8f9e"; g.lineWidth = 2;
+  g.beginPath();
+  for (let i = 0; i < 8; i++) { const a = (i * Math.PI) / 4; g.moveTo(Math.cos(a) * 9, Math.sin(a) * 9); g.lineTo(Math.cos(a) * 17, Math.sin(a) * 17); }
+  g.stroke();
+  const grad = g.createRadialGradient(-3, -4, 1, 0, 0, 11);
+  grad.addColorStop(0, "#5a5f6e"); grad.addColorStop(1, "#14161c");
+  g.fillStyle = grad; g.beginPath(); g.arc(0, 0, 11, 0, 7); g.fill();
+  g.strokeStyle = "#aeb4c4"; g.lineWidth = 1.4; g.stroke();
+  glowOn(g, col, 12, res); g.fillStyle = "#ffd0d0";
+  g.beginPath(); g.arc(0, 0, 3.4, 0, 7); g.fill(); glowOff(g);
+  g.strokeStyle = col; g.lineWidth = 1.2; g.beginPath(); g.arc(0, 0, 6.5, 0, 7); g.stroke();
+}
+
+function drawLancer(g: Ctx, res: number): void {
+  const col = ENEMY_COLOR.lancer;
+  g.beginPath();
+  g.moveTo(0, 20); g.lineTo(4, 4); g.lineTo(11, -6); g.lineTo(6, -18); g.lineTo(0, -12); g.lineTo(-6, -18); g.lineTo(-11, -6); g.lineTo(-4, 4);
+  g.closePath();
+  const grad = g.createLinearGradient(0, -18, 0, 20);
+  grad.addColorStop(0, "#0d3b36"); grad.addColorStop(1, "#04110f");
+  g.fillStyle = grad; g.fill();
+  glowOn(g, col, 8, res); g.strokeStyle = col; g.lineWidth = 1.7; g.stroke(); glowOff(g);
+  g.strokeStyle = "rgba(255,255,255,0.5)"; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(0, -8); g.lineTo(0, 16); g.stroke();
+  glowOn(g, "#ff4d6d", 8, res); g.fillStyle = "#ffc2cc";
+  g.beginPath(); g.arc(0, 17, 1.8, 0, 7); g.fill(); glowOff(g);
+}
+
+function drawPrism(g: Ctx, res: number): void {
+  const col = ENEMY_COLOR.prism;
+  const pts: Array<[number, number]> = [[0, -17], [15, -4], [9, 15], [-9, 15], [-15, -4]];
+  g.beginPath(); pts.forEach(([x, y]) => g.lineTo(x, y)); g.closePath();
+  const grad = g.createLinearGradient(-15, -17, 15, 15);
+  grad.addColorStop(0, "rgba(220,250,255,0.75)"); grad.addColorStop(0.5, "rgba(70,150,200,0.45)"); grad.addColorStop(1, "rgba(20,40,90,0.6)");
+  g.fillStyle = grad; g.fill();
+  glowOn(g, col, 9, res); g.strokeStyle = col; g.lineWidth = 1.6; g.stroke(); glowOff(g);
+  g.strokeStyle = "rgba(255,255,255,0.55)"; g.lineWidth = 0.9;
+  g.beginPath(); pts.forEach(([x, y]) => { g.moveTo(0, 1); g.lineTo(x, y); }); g.stroke();
+}
+
+function drawWisp(g: Ctx, res: number): void {
+  const col = ENEMY_COLOR.wisp;
+  const grad = g.createRadialGradient(0, 0, 0, 0, 0, 10);
+  grad.addColorStop(0, "#ffffff"); grad.addColorStop(0.4, col); grad.addColorStop(1, "rgba(120,200,40,0)");
+  glowOn(g, col, 10, res); g.fillStyle = grad;
+  g.beginPath(); g.arc(0, 0, 10, 0, 7); g.fill(); glowOff(g);
+  g.strokeStyle = "rgba(200,255,106,0.8)"; g.lineWidth = 1.2;
+  g.beginPath(); g.arc(0, 0, 7, 0.4, 2.4); g.stroke();
+  g.beginPath(); g.arc(0, 0, 7, 3.6, 5.4); g.stroke();
+}
+
 function drawShip(g: Ctx, res: number): void {
   // NOSTOS: schlanker Rumpf mit Habitatring (eigener Entwurf)
   g.strokeStyle = "rgba(160,200,230,0.55)"; g.lineWidth = 2;
@@ -265,6 +349,12 @@ export const S = {
   plasma: null as unknown as Sprite,
   monolith: null as unknown as Sprite,
   echo: null as unknown as Sprite,
+  asteroid: null as unknown as Sprite,
+  shard: null as unknown as Sprite,
+  mine: null as unknown as Sprite,
+  lancer: null as unknown as Sprite,
+  prism: null as unknown as Sprite,
+  wisp: null as unknown as Sprite,
   boss: null as unknown as Sprite,
   guardians: [] as Sprite[],
   pickups: {} as Record<PickupKind, Sprite>,
@@ -276,9 +366,6 @@ export function glow(color: string): Sprite {
   if (!s) { s = makeGlow(color); glowCache.set(color, s); }
   return s;
 }
-
-/** Guardian-Abmessungen (Trefferfläche) je Akt. */
-export const GUARDIAN_SIZE: Array<[number, number]> = [[104, 84], [50, 118], [96, 96], [112, 104]];
 
 export function bakeSprites(): void {
   glowCache.clear();
@@ -293,12 +380,20 @@ export function bakeSprites(): void {
   S.plasma = bake(34, 38, 12, drawPlasma, B);
   S.monolith = bake(24, 54, 12, drawMonolith, B);
   S.echo = bake(18, 24, 10, drawEcho);
+  S.asteroid = bake(40, 38, 10, drawAsteroid, B);
+  S.shard = bake(18, 18, 8, drawShard);
+  S.mine = bake(36, 36, 12, drawMine, B);
+  S.lancer = bake(26, 42, 10, drawLancer, B);
+  S.prism = bake(34, 36, 10, drawPrism, B);
+  S.wisp = bake(22, 22, 12, drawWisp, B);
   S.boss = bake(232, 102, 30, drawBossHull);
   S.guardians = [
     bake(130, 116, 26, scaled(drawBeast, 3.1)),
     bake(60, 130, 26, scaled(drawMonolith, 2.3)),
     bake(124, 124, 26, scaled(drawPod, 3.1)),
     bake(126, 124, 26, scaled(drawHunter, 3.2)),
+    bake(126, 116, 26, scaled(drawAsteroid, 3.1)),
+    bake(110, 116, 26, scaled(drawPrism, 3.3)),
   ];
   (Object.keys(PICKUP_INFO) as PickupKind[]).forEach((k) => { S.pickups[k] = bake(28, 28, 10, drawPickup(k)); });
 }

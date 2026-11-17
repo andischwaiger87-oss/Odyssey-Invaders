@@ -1,19 +1,24 @@
 // Hintergründe: Parallax-Sterne und je Akt eine eigene Szene.
 
 import { view } from "./view";
+import { Scene } from "./config";
 
 type Ctx = CanvasRenderingContext2D;
 
 interface Star { x: number; y: number; z: number; s: number; tw: number; tint: string; }
 
-const NEBULA: string[][] = [
-  ["rgba(255,150,60,0.10)", "rgba(80,120,255,0.07)"],
-  ["rgba(255,140,50,0.12)", "rgba(120,60,160,0.06)"],
-  ["rgba(110,140,200,0.09)", "rgba(60,90,160,0.07)"],
-  ["rgba(255,120,40,0.08)", "rgba(200,60,60,0.06)"],
-  ["rgba(120,90,255,0.10)", "rgba(40,200,220,0.07)"],
-  ["rgba(200,80,255,0.09)", "rgba(255,120,60,0.08)"],
-];
+const NEBULA: Record<Scene, [string, string]> = {
+  dawn: ["rgba(255,140,50,0.12)", "rgba(120,60,160,0.06)"],
+  moon: ["rgba(110,140,200,0.09)", "rgba(60,90,160,0.07)"],
+  belt: ["rgba(170,120,70,0.10)", "rgba(70,90,120,0.07)"],
+  approach: ["rgba(255,120,40,0.08)", "rgba(200,60,60,0.06)"],
+  gate: ["rgba(120,90,255,0.10)", "rgba(40,200,220,0.07)"],
+  crystal: ["rgba(90,220,255,0.10)", "rgba(190,240,255,0.06)"],
+  giant: ["rgba(200,80,255,0.09)", "rgba(255,120,60,0.08)"],
+};
+
+interface Rock { x: number; y: number; r: number; z: number; rot: number; spin: number; seed: number; }
+interface Crystal { x: number; y: number; len: number; w: number; a: number; hue: number; ph: number; }
 
 function seeded(seed: number): () => number {
   let s = seed;
@@ -29,12 +34,23 @@ export class Background {
   private earth: HTMLCanvasElement | null = null;
   private moon: HTMLCanvasElement | null = null;
   public reduced = false;
+  private rocks: Rock[] = [];
+  private crystals: Crystal[] = [];
 
   constructor() {
     const tints = ["#ffffff", "#ffffff", "#cfe4ff", "#ffe9c9", "#ffd0d0"];
     for (let i = 0; i < 190; i++) {
       const z = 0.15 + Math.pow(Math.random(), 2.2) * 0.85;
       this.stars.push({ x: Math.random(), y: Math.random(), z, s: 0.6 + z * 1.6, tw: Math.random() * 6.28, tint: tints[i % tints.length] });
+    }
+    for (let i = 0; i < 22; i++) {
+      const z = 0.25 + Math.random() * 0.75;
+      this.rocks.push({ x: Math.random(), y: Math.random(), r: 6 + z * 26, z, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 0.5, seed: 3 + i * 31 });
+    }
+    for (let i = 0; i < 12; i++) {
+      const left = i % 2 === 0;
+      this.crystals.push({ x: left ? -0.02 : 1.02, y: 0.08 + (i / 12) * 0.95, len: 0.16 + Math.random() * 0.24, w: 18 + Math.random() * 44,
+        a: (left ? 0 : Math.PI) + (Math.random() - 0.5) * 0.9, hue: 175 + Math.random() * 45, ph: Math.random() * 6.28 });
     }
   }
 
@@ -136,9 +152,15 @@ export class Background {
     return c;
   }
 
-  update(dt: number, act: number, boost: number): void {
+  update(dt: number, scene: Scene, boost: number): void {
     this.t += dt;
-    const target = (act === 4 ? 7 : act === 5 ? 2.2 : 1) * boost;
+    const target = (scene === "gate" ? 7 : scene === "giant" ? 2.2 : scene === "belt" ? 1.5 : scene === "crystal" ? 0.4 : 1) * boost;
+    if (scene === "belt") {
+      for (const r of this.rocks) {
+        r.y += dt * 0.02 * r.z; r.rot += r.spin * dt;
+        if (r.y > 1.1) { r.y = -0.1; r.x = Math.random(); }
+      }
+    }
     this.speed += (target - this.speed) * Math.min(1, dt * 1.5);
     const v = dt * 0.035 * this.speed;
     for (const s of this.stars) {
@@ -157,12 +179,12 @@ export class Background {
     if (c) ctx.drawImage(c, cx - size / 2, cy - size / 2, size, size * (c.height / c.width));
   }
 
-  draw(ctx: Ctx, act: number, sector: number, finale: boolean): void {
+  draw(ctx: Ctx, scene: Scene, sector: number, finale: boolean): void {
     const W = view.w, H = view.h, t = this.t;
     ctx.fillStyle = "#020308";
     ctx.fillRect(0, 0, W, H);
 
-    const neb = NEBULA[act] ?? NEBULA[0];
+    const neb = NEBULA[scene];
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     this.blob(ctx, W * (0.22 + Math.sin(t * 0.03) * 0.04), H * 0.3, Math.max(W, H) * 0.55, neb[0]);
@@ -180,11 +202,13 @@ export class Background {
     }
     ctx.globalAlpha = 1;
 
-    if (act <= 1) this.sceneDawn(ctx, W, H, t);
-    else if (act === 2) this.sceneMoon(ctx, W, H, t);
-    else if (act === 3) this.sceneApproach(ctx, W, H, t);
-    else if (act === 4) this.sceneGate(ctx, W, H, t);
-    else if (act === 5) {
+    if (scene === "dawn") this.sceneDawn(ctx, W, H, t);
+    else if (scene === "moon") this.sceneMoon(ctx, W, H, t);
+    else if (scene === "belt") this.sceneBelt(ctx, W, H);
+    else if (scene === "approach") this.sceneApproach(ctx, W, H, t);
+    else if (scene === "gate") this.sceneGate(ctx, W, H, t);
+    else if (scene === "crystal") this.sceneCrystal(ctx, W, H, t);
+    else {
       if (sector >= 3 || finale) this.sceneSpiral(ctx, W, H, t);
       else this.image(ctx, this.giantBig, W * 0.76, H * 0.36, Math.min(300, W * 0.3) * 2.7);
     }
@@ -245,6 +269,49 @@ export class Background {
     }
     ctx.globalAlpha = 1;
     this.blob(ctx, cx, cy, H * 0.3, "rgba(255,240,220,0.14)");
+    ctx.restore();
+  }
+
+  private sceneBelt(ctx: Ctx, W: number, H: number): void {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    this.blob(ctx, W * 0.86, H * 0.16, H * 0.2, "rgba(255,230,190,0.35)");
+    ctx.restore();
+    for (const r of this.rocks) {
+      let s = r.seed;
+      const rnd = (): number => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+      ctx.save();
+      ctx.translate(r.x * W, r.y * H); ctx.rotate(r.rot);
+      ctx.globalAlpha = 0.35 + r.z * 0.4;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2, rr = r.r * (0.7 + rnd() * 0.35);
+        ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr * 0.85);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "#14110e"; ctx.fill();
+      ctx.strokeStyle = "rgba(190,160,125,0.55)"; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  private sceneCrystal(ctx: Ctx, W: number, H: number, t: number): void {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    this.blob(ctx, W / 2, H * 0.3, H * 0.55, "rgba(150,230,255,0.10)");
+    for (const c of this.crystals) {
+      const x = c.x * W, y = c.y * H, len = c.len * Math.max(W, 900);
+      const shimmer = this.reduced ? 0.6 : 0.5 + 0.5 * Math.sin(t * 0.7 + c.ph);
+      const tx = x + Math.cos(c.a) * len, ty = y + Math.sin(c.a) * len;
+      const nx = -Math.sin(c.a) * c.w, ny = Math.cos(c.a) * c.w;
+      const g = ctx.createLinearGradient(x, y, tx, ty);
+      g.addColorStop(0, `hsla(${c.hue}, 80%, 70%, ${0.10 + shimmer * 0.12})`);
+      g.addColorStop(1, `hsla(${c.hue}, 80%, 85%, 0.02)`);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(x + nx, y + ny); ctx.lineTo(tx, ty); ctx.lineTo(x - nx, y - ny); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = `hsla(${c.hue}, 90%, 85%, ${0.12 + shimmer * 0.2})`; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty); ctx.stroke();
+    }
     ctx.restore();
   }
 

@@ -14,6 +14,7 @@ export interface UIHandlers {
   settingsChanged(): void;
   warp(act: number, sector: number): void;
   runActive(): boolean;
+  eye(clicks: number): void;
 }
 
 export type ScreenName = "title" | "story" | "pause" | "end";
@@ -42,6 +43,14 @@ export class UI {
     click("btn-settings-close", () => this.closeSettings());
     $("story").addEventListener("click", () => h.skipStory());
 
+    const actBox = $("act-select");
+    ACTS.forEach((a, i) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.dataset.act = String(i + 1); b.textContent = a.roman;
+      actBox.appendChild(b);
+    });
+    let pokes = 0;
+    document.querySelector(".emblem")?.addEventListener("click", () => { audio.unlock(); h.eye(++pokes); });
     document.querySelectorAll<HTMLButtonElement>("#act-select button").forEach((b) => {
       b.addEventListener("click", () => { audio.unlock(); audio.ui(); this.startAct = Number(b.dataset.act); this.refreshTitle(); });
     });

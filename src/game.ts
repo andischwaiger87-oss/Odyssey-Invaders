@@ -1,8 +1,8 @@
 // Spiellogik: Zustände, Wellen, Gegnerverhalten, Kollisionen, Darstellung.
 
-import { ACTS, DIFF, DiffDef, EnemyKind, PickupKind, PICKUP_INFO, ENEMY_COLOR, OUTRO_LINES, COLORS } from "./config";
+import { ACTS, ActDef, Scene, DIFF, DiffDef, EnemyKind, PickupKind, PICKUP_INFO, ENEMY_COLOR, OUTRO_LINES, COLORS } from "./config";
 import { view, fitCanvas, clamp, rand } from "./view";
-import { S, bakeSprites, drawSprite, glow, GUARDIAN_SIZE, Sprite } from "./sprites";
+import { S, bakeSprites, drawSprite, glow, Sprite } from "./sprites";
 import { Particles } from "./particles";
 import { Background } from "./background";
 import { audio } from "./audio";
@@ -19,7 +19,7 @@ interface Enemy {
   hx: number; hy: number; sx: number; sy: number; enter: number;
   hp: number; maxHp: number; vx: number; vy: number;
   phase: number; t: number; flash: number; cd: number; cd2: number;
-  score: number; stage: number; dead: boolean;
+  score: number; stage: number; dead: boolean; gold: boolean; lockX: number;
 }
 
 interface Shot {
@@ -34,7 +34,12 @@ const ES = 1.28; // Darstellungsgröße der Standardgegner
 const DIMS: Record<EnemyKind, [number, number]> = {
   drifter: [38, 38], beast: [41, 36], satellite: [50, 34], pod: [36, 36], hunter: [41, 38],
   plasma: [36, 38], monolith: [28, 66], echo: [14, 20], guardian: [100, 90], boss: [220, 92],
+  asteroid: [44, 40], shard: [14, 14], mine: [34, 34], lancer: [28, 48], prism: [38, 40], wisp: [24, 24],
 };
+const HP: Partial<Record<EnemyKind, number>> = { asteroid: 3, prism: 2 };
+const SCORE: Partial<Record<EnemyKind, number>> = { asteroid: 200, prism: 200, lancer: 200, mine: 150, wisp: 150, shard: 50, echo: 50 };
+const FREE: EnemyKind[] = ["echo", "shard"]; // Treibgut: kein Durchbruch, Schaden nur bei Berührung
+const KONAMI = "ArrowUp,ArrowUp,ArrowDown,ArrowDown,ArrowLeft,ArrowRight,ArrowLeft,ArrowRight,KeyB,KeyA";
 
 const STORY_TIME = 6;
 const OUTRO_TIME = 17;
@@ -87,6 +92,14 @@ export class Game {
   private fpsT = 0;
   private debugOn = false;
   private lastRetryWon = false;
+  private giftShield = false;
+  private keyLog: string[] = [];
+  private egg42 = false;
+
+  private get def(): ActDef { return ACTS[this.act - 1]; }
+  private get scene(): Scene {
+    return this.state === "TITLE" || this.state === "GAMEOVER" || this.state === "WON" ? "dawn" : this.def.scene;
+  }
 
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext("2d", { alpha: false })!;
@@ -102,6 +115,7 @@ export class Game {
       settingsChanged: () => this.applySettings(),
       warp: (a, s) => this.startRun(a, s),
       runActive: () => this.state !== "TITLE" && this.state !== "GAMEOVER" && this.state !== "WON",
+      eye: (n) => this.eyePoked(n),
     });
     this.applySettings();
     this.resize();
@@ -136,10 +150,11 @@ export class Game {
     audio.setVolumes(this.save.sfx, this.save.music);
     this.bg.reduced = this.save.reduced;
     this.fx.reduced = this.save.reduced;
+    this.fx.mosaic = this.save.mosaic;
   }
 
   private trackFor(): number {
-    return this.state === "TITLE" || this.state === "GAMEOVER" || this.state === "WON" ? 0 : this.act;
+    return this.state === "TITLE" || this.state === "GAMEOVER" || this.state === "WON" ? 0 : this.def.music;
   }
 
   private topY(): number {
@@ -149,7 +164,31 @@ export class Game {
 
   private get lineY(): number { return view.h - 172; }
 
+  private eyePoked(n: number): void {
+    if (n === 5) { this.ui.status("POLYPHEM // BITTE NICHT INS AUGE FASSEN", true); audio.deny(); }
+    else if (n === 10) { this.ui.status("POLYPHEM // ICH MERKE MIR DAS", true); audio.bossWarn(); }
+    else if (n === 15) { this.ui.status("POLYPHEM // NA GUT. EIN GESCHENK.", false); audio.pickup(); this.giftShield = true; }
+  }
+
+  private secretKeys(code: string): void {
+    this.keyLog.push(code);
+    if (this.keyLog.length > 10) this.keyLog.shift();
+    const log = this.keyLog.join(",");
+    if (log === KONAMI) {
+      this.save.rainbow = !this.save.rainbow; storeSave(this.save);
+      this.ui.banner(this.save.rainbow ? "REGENBOGENSTRAHL" : "STANDARDSTRAHL", "Geheimcode angenommen", 1800);
+      audio.pickup(); this.keyLog.length = 0;
+    } else if (log.endsWith("KeyU,KeyN,KeyK,KeyE,KeyN")) {
+      this.save.mosaic = !this.save.mosaic; storeSave(this.save);
+      this.fx.mosaic = this.save.mosaic;
+      this.ui.banner(this.save.mosaic ? "MOSAIK-MODUS" : "MOSAIK-MODUS AUS", "Schöne Grüße aus Unken", 1800);
+      audio.pickup(); this.keyLog.length = 0;
+      if (this.save.mosaic) this.fx.explosion(view.w / 2, view.h * 0.3, "#ffb020", 2.5);
+    }
+  }
+
   private onKey(code: string): void {
+    this.secretKeys(code);
     if (code === "KeyI") { this.debugOn = !this.debugOn; if (!this.debugOn) this.ui.debug(null); return; }
     if (code === "KeyM") { audio.setMuted(!audio.muted); return; }
     if (code === "KeyF") {
@@ -187,12 +226,14 @@ export class Game {
     this.checkpointAct = act; this.checkpointScore = 0;
     this.stats = { shots: 0, hits: 0, kills: 0, time: 0, maxChain: 0 };
     this.act = act; this.sector = sector;
+    this.egg42 = false;
     this.resetField();
+    if (this.giftShield) { this.player.shield = 12; this.giftShield = false; }
     this.player.x = view.w / 2;
     if (sector === 1) this.startAct();
     else {
       this.state = "PLAYING"; this.ui.screen(null); this.ui.setPlaying(true);
-      audio.setTrack(this.act); audio.duck(false);
+      audio.setTrack(this.def.music); audio.duck(false);
       this.startSector();
     }
   }
@@ -225,8 +266,8 @@ export class Game {
     this.state = "STORY"; this.storyT = STORY_TIME;
     this.ui.setPlaying(false);
     this.ui.story(this.act, def.title, def.story);
-    this.ui.status(def.status, this.act >= 3);
-    audio.setTrack(this.act); audio.setIntensity(0); audio.duck(false);
+    this.ui.status(def.status, this.act >= 4);
+    audio.setTrack(def.music); audio.setIntensity(0); audio.duck(false);
   }
 
   private endStory(): void {
@@ -268,13 +309,18 @@ export class Game {
         row++;
       }
     }
-    if (def.guardian) {
-      const [gw, gh] = GUARDIAN_SIZE[this.act - 1];
+    // Verstecktes Extra: selten trägt ein Gegner Gold
+    if (this.enemies.length > 0 && Math.random() < 0.07) {
+      const lucky = this.enemies[Math.floor(Math.random() * this.enemies.length)];
+      lucky.gold = true; lucky.score = 2500;
+    }
+    if (def.guardian && actDef.guardian) {
+      const gd = actDef.guardian;
       const g = this.addEnemy("guardian", W / 2, this.topY() + 40, 0, 0);
-      g.w = gw; g.h = gh; g.sy = -140; g.sx = W / 2; g.enter = 1.5;
+      g.w = gd.w; g.h = gd.h; g.sy = -140; g.sx = W / 2; g.enter = 1.5;
       g.hp = g.maxHp = Math.round((28 + this.act * 8) * this.diff.guardianHp);
       g.score = 2500; g.cd = 2.4;
-      this.ui.banner(`SEKTOR ${this.sector} · ${def.name.toUpperCase()}`, `Wächter: ${actDef.guardianName}`, 2200);
+      this.ui.banner(`SEKTOR ${this.sector} · ${def.name.toUpperCase()}`, `Wächter: ${gd.name}`, 2200);
     } else {
       this.ui.banner(`SEKTOR ${this.sector} · ${def.name.toUpperCase()}`, `Akt ${actDef.roman} · ${actDef.title}`, 1700);
     }
@@ -287,10 +333,11 @@ export class Game {
     const e: Enemy = {
       kind, x: hx, y: -80, w, h, hx, hy,
       sx: hx + rand(-120, 120), sy: -50 - row * 46, enter: 1 + col * 0.035 + row * 0.1,
-      hp: 1, maxHp: 1, vx: moving ? rand(30, 60) * (Math.random() < 0.5 ? -1 : 1) : 0, vy: 0,
+      hp: HP[kind] ?? 1, maxHp: HP[kind] ?? 1, vx: moving ? rand(30, 60) * (Math.random() < 0.5 ? -1 : 1) : 0, vy: 0,
       phase: row * 0.9 + col * 0.35, t: 0, flash: 0, cd: rand(0.4, 1.4), cd2: 3,
-      score: 100, stage: 0, dead: false,
+      score: SCORE[kind] ?? 100, stage: 0, dead: false, gold: false, lockX: 0,
     };
+    if (kind === "lancer") e.cd = rand(1.2, 5.5);
     this.enemies.push(e);
     return e;
   }
@@ -332,7 +379,7 @@ export class Game {
       ["Flugzeit", `${m}:${String(s).padStart(2, "0")}`],
     ];
     if (won) {
-      this.ui.end(true, "Heimkehr", `Die Metamorphose ist abgeschlossen. Schwierigkeit: ${this.diff.label}.`, stats, "Neue Mission");
+      this.ui.end(true, "Heimkehr", `Sieben Akte, 28 Sektoren. Die Metamorphose ist abgeschlossen. Schwierigkeit: ${this.diff.label}.`, stats, "Neue Mission");
       audio.victory();
     } else {
       const roman = ACTS[this.checkpointAct - 1].roman;
@@ -364,8 +411,7 @@ export class Game {
   private update(dt: number): void {
     const st = this.state;
     if (st === "PAUSED") return;
-    const bgAct = st === "TITLE" || st === "GAMEOVER" || st === "WON" ? 0 : this.act;
-    this.bg.update(dt, bgAct, st === "OUTRO" ? 3 : 1);
+    this.bg.update(dt, this.scene, st === "OUTRO" ? 3 : 1);
     if (this.shakeT > 0) this.shakeT -= dt;
 
     if (st === "STORY") {
@@ -435,7 +481,8 @@ export class Game {
 
   private fire(x: number, y: number, vx: number): void {
     const pierce = this.player.pierce > 0;
-    this.shots.push({ x, y, vx, vy: -740, color: pierce ? "#ffd166" : COLORS.playerShot, friendly: true, pierce, dead: false, hits: pierce ? [] : null });
+    const color = this.save.rainbow ? `hsl(${Math.floor((this.waveT * 6) % 12) * 30}, 95%, 66%)` : pierce ? "#ffd166" : COLORS.playerShot;
+    this.shots.push({ x, y, vx, vy: -740, color, friendly: true, pierce, dead: false, hits: pierce ? [] : null });
   }
 
   private hurtPlayer(breach: boolean): void {
@@ -479,7 +526,7 @@ export class Game {
 
   private enemyShot(x: number, y: number, vx: number, color: string, vyOverride = 0): void {
     let speed = 360 + this.sector * 8 + this.diff.bulletBonus * 0.85;
-    if (this.act === 3) speed += 50;
+    if (this.def.cores) speed += 50;
     this.shots.push({ x, y, vx, vy: vyOverride || speed, color, friendly: false, pierce: false, dead: false, hits: null });
     audio.enemyShoot();
   }
@@ -512,7 +559,7 @@ export class Game {
           e.x += Math.sin(this.waveT * 2.5 + e.phase) * 45 * dt;
           e.y += (15 + lvl * 2) * 0.8 * dt;
           if (fireOk && Math.random() < 1.2 * d.shoot * dt) {
-            if (this.act === 3) this.enemyShot(e.x, e.y + 14, (p.x - e.x) * 0.5, COLORS.amber);
+            if (this.def.cores) this.enemyShot(e.x, e.y + 14, (p.x - e.x) * 0.5, COLORS.amber);
             else this.enemyShot(e.x, e.y + 14, 0, "#ff7ab8");
             this.globalCd = 0.45 * d.fireCd;
           }
@@ -561,12 +608,57 @@ export class Game {
             this.globalCd = 0.38 * d.fireCd;
           }
           break;
+        case "asteroid":
+          e.x += Math.sin(this.waveT * 0.8 + e.phase) * 18 * dt;
+          e.y += (12 + lvl * 1.5) * 0.8 * dt;
+          break;
+        case "mine":
+          e.x += Math.sin(this.waveT * 1.2 + e.phase) * 30 * dt;
+          e.y += 7 * dt;
+          break;
+        case "prism":
+          e.x += Math.sin(this.waveT * 1.6 + e.phase) * 55 * dt;
+          e.y += 9 * dt;
+          if (fireOk && Math.random() < 1.0 * d.shoot * dt) {
+            this.enemyShot(e.x, e.y + 18, 0, "#bfefff");
+            this.globalCd = 0.5 * d.fireCd;
+          }
+          break;
+        case "wisp":
+          e.hy += 10 * dt;
+          e.x = e.hx + Math.cos(e.t * 3 + e.phase * 2) * 44;
+          e.y = e.hy + Math.sin(e.t * 3 + e.phase * 2) * 26;
+          if (fireOk && Math.random() < 2.0 * d.shoot * dt) {
+            this.enemyShot(e.x, e.y + 10, (p.x - e.x) * 0.4, "#c8ff6a");
+            this.globalCd = 0.4 * d.fireCd;
+          }
+          break;
+        case "lancer":
+          e.x += Math.sin(this.waveT * 1.1 + e.phase) * 26 * dt;
+          if (e.stage === 1) {
+            e.cd2 -= dt;
+            if (e.cd2 <= 0) {
+              const time = Math.max(0.2, (p.y - e.y) / 780);
+              this.enemyShot(e.x, e.y + 24, (e.lockX - e.x) / time, "#4de0c0", 780);
+              e.stage = 0; e.cd = rand(2.2, 3.8) * (0.6 + 0.4 * d.fireCd);
+            }
+          } else if (canShoot) {
+            e.cd -= dt;
+            if (e.cd <= 0) {
+              let aiming = 0;
+              for (const o of this.enemies) if (o.kind === "lancer" && o.stage === 1) aiming++;
+              if (aiming >= 2) e.cd = 0.35;
+              else { e.stage = 1; e.cd2 = hard ? 0.6 : 0.85; e.lockX = p.x; }
+            }
+          }
+          break;
         case "echo":
+        case "shard":
           e.x += e.vx * dt; e.y += e.vy * dt;
           if (e.x < 14 || e.x > W - 14) e.vx *= -1;
           if (e.y > view.h + 30) e.dead = true;
           if (!e.dead && Math.abs(e.x - p.x) < 20 && Math.abs(e.y - p.y) < 30) {
-            e.dead = true; this.fx.explosion(e.x, e.y, ENEMY_COLOR.echo, 0.7); this.hurtPlayer(false);
+            e.dead = true; this.fx.explosion(e.x, e.y, ENEMY_COLOR[e.kind], 0.7); this.hurtPlayer(false);
           }
           break;
         case "guardian":
@@ -576,10 +668,10 @@ export class Game {
           this.updateBoss(e, dt, canShoot);
           break;
       }
-      if (e.kind !== "monolith" && e.kind !== "echo") e.x = clamp(e.x, 18, W - 18);
+      if (e.kind !== "monolith" && !FREE.includes(e.kind)) e.x = clamp(e.x, 18, W - 18);
 
       // Durchbruch der Verteidigungslinie
-      if (e.kind !== "echo" && e.kind !== "boss" && e.kind !== "guardian" && e.y + e.h / 2 > this.lineY && this.state === "PLAYING") {
+      if (!FREE.includes(e.kind) && e.kind !== "boss" && e.kind !== "guardian" && e.y + e.h / 2 > this.lineY && this.state === "PLAYING") {
         e.dead = true;
         this.fx.explosion(e.x, e.y, ENEMY_COLOR[e.kind], 1);
         audio.explode(1);
@@ -612,13 +704,28 @@ export class Game {
     e.cd -= dt;
     if (!canShoot || e.cd > 0) return;
     const by = e.y + e.h / 2 - 6;
-    switch (this.act) {
-      case 1: for (let i = -2; i <= 2; i++) this.enemyShot(e.x + i * 8, by, i * 95, "#ff8a3c"); break;
-      case 2:
+    switch (this.def.guardian?.pattern) {
+      case "fan": for (let i = -2; i <= 2; i++) this.enemyShot(e.x + i * 8, by, i * 95, "#ff8a3c"); break;
+      case "columns":
         for (const dx of [-18, -6, 6, 18]) this.enemyShot(e.x + dx, by, 0, "#8fb4ff");
         this.enemyShot(e.x, by, (p.x - e.x) * 0.7, "#ffffff");
         break;
-      case 3: for (const o of [-70, 0, 70]) this.enemyShot(e.x, by, (p.x - e.x) * 0.7 + o, "#f2c744"); break;
+      case "aimed": for (const o of [-70, 0, 70]) this.enemyShot(e.x, by, (p.x - e.x) * 0.7 + o, "#f2c744"); break;
+      case "rocks":
+        for (const sgn of [-1, 1]) {
+          const n = this.addEnemy("shard", e.x + sgn * 30, by, 0, 0);
+          n.enter = 0; n.x = n.hx; n.y = n.hy; n.vx = sgn * rand(40, 130); n.vy = rand(170, 230);
+        }
+        for (const vx of [-110, 0, 110]) this.enemyShot(e.x, by, vx, "#d8bd9c");
+        break;
+      case "prism":
+        e.stage = e.stage ? 0 : 1;
+        if (e.stage) for (const o of [-90, 0, 90]) this.enemyShot(e.x, by, (p.x - e.x) * 0.7 + o, "#bfefff");
+        else for (let i = 0; i < 7; i++) {
+          const a = Math.PI * (0.18 + (i / 6) * 0.64);
+          this.enemyShot(e.x, by, Math.cos(a) * 280, "#ffffff", Math.sin(a) * 280);
+        }
+        break;
       default:
         for (let i = 0; i < 9; i++) {
           const a = Math.PI * (0.14 + (i / 8) * 0.72);
@@ -724,6 +831,7 @@ export class Game {
     if (e.hp > 0) {
       this.fx.hit(x, y, ENEMY_COLOR[e.kind]);
       audio.hitMetal();
+      if (e.kind === "prism" && this.state === "PLAYING") this.enemyShot(e.x, e.y + 18, (this.player.x - e.x) * 0.7, "#ffffff");
       if (e.kind === "boss") this.shake(0.12, 3);
       return;
     }
@@ -737,15 +845,32 @@ export class Game {
       this.drop(e.x - 24, e.y, true); this.drop(e.x + 24, e.y, true);
       audio.setIntensity(0.3);
     } else {
-      this.fx.explosion(e.x, e.y, color, 1);
-      audio.explode(e.kind === "monolith" ? 1 : 0);
+      this.fx.explosion(e.x, e.y, e.gold ? "#ffd700" : color, e.gold ? 1.8 : 1);
+      audio.explode(e.kind === "monolith" || e.kind === "asteroid" ? 1 : 0);
       this.shake(0.12, 4);
-      this.drop(e.x, e.y, false);
+      this.drop(e.x, e.y, e.gold);
+      if (e.gold) { this.fx.text(e.x, e.y - 40, "GLÜCKSFUND", "#ffd700"); audio.pickup(); }
+      if (e.kind === "asteroid") {
+        for (const sgn of [-1, 1]) {
+          const n = this.addEnemy("shard", e.x + sgn * 10, e.y, 0, 0);
+          n.enter = 0; n.x = n.hx; n.y = n.hy; n.vx = sgn * rand(50, 120); n.vy = rand(150, 210);
+        }
+      } else if (e.kind === "mine" && this.state === "PLAYING") {
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2 + 0.5;
+          this.enemyShot(e.x, e.y, Math.cos(a) * 230, ENEMY_COLOR.mine, Math.sin(a) * 230 || 1);
+        }
+        this.fx.ring(e.x, e.y, ENEMY_COLOR.mine, 60, 0.4);
+      }
     }
     this.chain++;
     if (this.chain > this.stats.maxChain) this.stats.maxChain = this.chain;
     this.comboT = 2.6;
     const m = Math.min(8, 1 + Math.floor(this.chain / 6));
+    if (this.chain === 42 && !this.egg42) {
+      this.egg42 = true; this.score += 4200;
+      this.fx.text(this.player.x, this.player.y - 78, "42 · DIE ANTWORT  +4200", "#5ef2c8");
+    }
     if (m > this.mult) { this.mult = m; audio.combo(m); this.fx.text(this.player.x, this.player.y - 54, `KETTE ×${m}`, COLORS.amber); }
     this.addScore(e.score, e.x, e.y);
   }
@@ -790,7 +915,7 @@ export class Game {
       this.clearEnemyShots();
       this.globalCd = 2.5;
       for (const e of this.enemies) {
-        if (e.kind === "echo") this.damage(e, 1, e.x, e.y);
+        if (FREE.includes(e.kind)) this.damage(e, 1, e.x, e.y);
         else if (e.kind === "boss" || e.kind === "guardian") this.damage(e, 10, e.x, e.y);
         else e.flash = 1;
       }
@@ -853,8 +978,7 @@ export class Game {
     const st = this.state;
     ctx.setTransform(view.res, 0, 0, view.res, 0, 0);
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
-    const bgAct = st === "TITLE" || st === "GAMEOVER" || st === "WON" ? 0 : this.act;
-    this.bg.draw(ctx, bgAct, this.sector, st === "OUTRO" || this.phase === "bossdeath");
+    this.bg.draw(ctx, this.scene, this.sector, st === "OUTRO" || this.phase === "bossdeath");
 
     const world = st === "PLAYING" || st === "PAUSED" || st === "DYING";
     ctx.save();
@@ -876,7 +1000,7 @@ export class Game {
     const y = this.lineY;
     let near = 0;
     for (const e of this.enemies) {
-      if (e.kind === "boss" || e.kind === "guardian" || e.kind === "echo") continue;
+      if (e.kind === "boss" || e.kind === "guardian" || FREE.includes(e.kind)) continue;
       const dist = y - (e.y + e.h / 2);
       if (dist < 160) near = Math.max(near, 1 - dist / 160);
     }
@@ -890,7 +1014,13 @@ export class Game {
 
   private spriteFor(e: Enemy): Sprite {
     switch (e.kind) {
-      case "drifter": return this.act === 3 ? S.core : S.drifter;
+      case "drifter": return this.def.cores ? S.core : S.drifter;
+      case "asteroid": return S.asteroid;
+      case "shard": return S.shard;
+      case "mine": return S.mine;
+      case "lancer": return S.lancer;
+      case "prism": return S.prism;
+      case "wisp": return S.wisp;
       case "beast": return S.beast;
       case "satellite": return S.satellite;
       case "pod": return S.pod;
@@ -898,7 +1028,7 @@ export class Game {
       case "plasma": return S.plasma;
       case "monolith": return S.monolith;
       case "echo": return S.echo;
-      case "guardian": return S.guardians[clamp(this.act - 1, 0, 3)];
+      case "guardian": return S.guardians[this.def.guardian?.sprite ?? 0];
       default: return S.boss;
     }
   }
@@ -909,7 +1039,22 @@ export class Game {
       return;
     }
     const s = this.spriteFor(e);
-    let scale = e.kind === "guardian" || e.kind === "echo" ? 1 : ES, rot = 0;
+    let scale = e.kind === "guardian" || FREE.includes(e.kind) ? 1 : ES, rot = 0;
+    if (e.gold) {
+      ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.6 + Math.sin(e.t * 7) * 0.25;
+      drawSprite(ctx, glow("#ffd700"), e.x, e.y, 1.25);
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    }
+    if (e.kind === "lancer" && e.stage === 1) {
+      ctx.save();
+      ctx.globalAlpha = 0.35 + 0.45 * Math.abs(Math.sin(e.t * 18));
+      ctx.strokeStyle = COLORS.danger; ctx.lineWidth = 1.5; ctx.setLineDash([6, 8]);
+      ctx.beginPath(); ctx.moveTo(e.x, e.y + 24); ctx.lineTo(e.lockX, this.player.y); ctx.stroke();
+      ctx.restore();
+    }
+    if (e.kind === "asteroid" || e.kind === "shard") rot = e.t * (e.phase % 2 > 1 ? 0.5 : -0.4) * (e.kind === "shard" ? 5 : 1);
+    else if (e.kind === "mine") scale *= 1 + Math.sin(e.t * 6 + e.phase) * 0.04;
+    else if (e.kind === "prism") rot = Math.sin(e.t * 1.2 + e.phase) * 0.2;
     if (e.kind === "plasma") scale *= 1 + Math.sin(e.t * 5 + e.phase) * 0.08;
     else if (e.kind === "hunter") rot = clamp(-e.vx / 300, -0.25, 0.25);
     else if (e.kind === "satellite") rot = Math.sin(e.t * 0.8 + e.phase) * 0.18;

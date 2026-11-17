@@ -88,7 +88,7 @@ body.playing #hud { opacity: 1; }
 #boss-bar.rage #boss-fill { background: var(--danger); box-shadow: 0 0 14px var(--danger); }
 #boss-bar.rage label { color: var(--danger); }
 
-#banner { position: absolute; left: 0; right: 0; top: 34%; z-index: 20; text-align: center; pointer-events: none; opacity: 0; transform: translateY(8px); transition: opacity 0.35s, transform 0.35s; }
+#banner { position: absolute; left: 0; right: 0; top: 34%; z-index: 45; text-align: center; pointer-events: none; opacity: 0; transform: translateY(8px); transition: opacity 0.35s, transform 0.35s; }
 #banner.on { opacity: 1; transform: none; }
 #banner strong { display: block; font-family: var(--display); font-weight: 400; font-size: clamp(16px, 3.2vw, 30px); letter-spacing: 0.3em; text-shadow: 0 0 24px rgba(0, 0, 0, 0.9); }
 #banner span { display: block; margin-top: 10px; font-size: 12px; letter-spacing: 0.34em; color: var(--amber); text-transform: uppercase; }
@@ -108,7 +108,7 @@ body.playing #btn-pause { display: block; }
 #pause, #end { background: rgba(2, 3, 8, 0.84); backdrop-filter: blur(5px); }
 #story { background: #020308; cursor: pointer; }
 
-.emblem { width: 92px; height: 92px; color: var(--amber); filter: drop-shadow(0 0 18px rgba(255, 176, 32, 0.5)); margin-bottom: 18px; flex: none; }
+.emblem { cursor: pointer; width: 92px; height: 92px; color: var(--amber); filter: drop-shadow(0 0 18px rgba(255, 176, 32, 0.5)); margin-bottom: 18px; flex: none; }
 .emblem path { animation: slit 5s ease-in-out infinite; transform-origin: 60px 60px; }
 @keyframes slit { 0%, 86%, 100% { transform: scaleX(1); } 92% { transform: scaleX(0.12); } }
 
@@ -133,8 +133,8 @@ h2 { font-size: clamp(18px, 3.6vw, 34px); letter-spacing: 0.26em; margin-right: 
 .btn.small { width: auto; padding: 9px 12px; font-size: 10px; letter-spacing: 0.2em; }
 :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
 
-.acts { display: flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); }
-.acts span { margin-right: 6px; white-space: nowrap; }
+.acts { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); }
+.acts span { width: 100%; text-align: center; margin-bottom: 2px; }
 .acts button { width: 36px; height: 30px; cursor: pointer; background: transparent; border: 1px solid var(--line); color: var(--ink); font: 600 11px var(--ui); }
 .acts button[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); }
 .acts button:disabled { opacity: 0.25; cursor: not-allowed; }

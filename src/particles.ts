@@ -10,11 +10,13 @@ interface P {
 }
 
 const MAX = 700;
+const MOSAIC = ["#ffb020", "#7fe9ff", "#ff4d6d", "#5ef2c8", "#c79bff", "#ffffff"];
 
 export class Particles {
   private list: P[] = [];
   private pool: P[] = [];
   public reduced = false;
+  public mosaic = false;
 
   private add(kind: number, x: number, y: number, vx: number, vy: number, life: number, size: number, color: string, drag = 0, text = ""): void {
     if (this.list.length >= MAX) return;
@@ -34,10 +36,11 @@ export class Particles {
       const sp = (60 + Math.random() * 260) * Math.sqrt(power);
       this.add(SPARK, x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.25 + Math.random() * 0.45, 1.6, color, 2.4);
     }
-    for (let i = 0; i < n / 3; i++) {
+    for (let i = 0; i < (this.mosaic ? n : n / 3); i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 40 + Math.random() * 140;
-      this.add(DEBRIS, x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.5 + Math.random() * 0.6, 2 + Math.random() * 2.5, color, 1.2);
+      const tile = this.mosaic ? MOSAIC[Math.floor(Math.random() * MOSAIC.length)] : color;
+      this.add(DEBRIS, x, y, Math.cos(a) * sp, Math.sin(a) * sp, 0.5 + Math.random() * 0.6, (this.mosaic ? 5 : 2) + Math.random() * 2.5, tile, 1.2);
     }
     this.add(RING, x, y, 0, 0, 0.35 + power * 0.1, 26 * power, color);
     this.add(GLOW, x, y, 0, 0, 0.22, 46 * power, color);
